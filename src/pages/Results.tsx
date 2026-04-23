@@ -1,63 +1,143 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
-import { Download, ArrowRight, ChevronDown, ChevronUp, ZoomIn, ZoomOut } from "lucide-react";
+import { Download, ArrowRight, ChevronDown, ChevronUp, MessageSquare, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { EcgCanvas } from "@/components/EcgCanvas";
-import { mockResults } from "@/data/mock";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
+
+const CLASSES = ["Normal", "Arrhythmia", "Myocardial Infarction", "ST Depression"];
+const CLASS_COLORS: Record<string, string> = {
+  "Normal": "hsl(var(--secondary))",
+  "Arrhythmia": "hsl(var(--primary))",
+  "Myocardial Infarction": "hsl(var(--warning))",
+  "ST Depression": "hsl(280 80% 65%)",
+};
 
 const Results = () => {
   const { id } = useParams();
-  const result = mockResults.find(r => r.id === id) ?? mockResults[0];
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [result, setResult] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(true);
   const [conf, setConf] = useState(0);
-  const [zoom, setZoom] = useState(1);
 
   useEffect(() => {
-    const t = setTimeout(() => setConf(result.confidence), 200);
-    return () => clearTimeout(t);
-  }, [result.confidence]);
+    const load = async () => {
+      if (!user) return;
+      let q = supabase.from("ecg_uploads").select("*").eq("user_id", user.id);
+      const { data, error } = id === "latest"
+        ? await q.order("created_at", { ascending: false }).limit(1).maybeSingle()
+        : await q.eq("id", id!).maybeSingle();
+      if (error || !data) { setLoading(false); return; }
+      setResult(data);
+      setLoading(false);
+      setTimeout(() => setConf((data as any).confidence ?? 0), 200);
+    };
+    load();
+  }, [id, user]);
 
-  const tone = result.status === "normal" ? { bg: "bg-secondary/10", border: "border-secondary/30", text: "text-secondary" }
-             : result.status === "warning" ? { bg: "bg-warning/10", border: "border-warning/30", text: "text-warning" }
-             : { bg: "bg-destructive/10", border: "border-destructive/30", text: "text-destructive" };
+  if (loading) {
+    return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading report…</div>;
+  }
+  if (!result) {
+    return (
+      <div className="min-h-screen grid place-items-center text-center p-8">
+        <div>
+          <h2 className="font-display text-2xl mb-3">No reports yet</h2>
+          <p className="text-muted-foreground mb-6">Upload an ECG to see results here.</p>
+          <Button variant="hero" onClick={() => navigate("/upload")}>Upload now</Button>
+        </div>
+      </div>
+    );
+  }
+
+  const probs = result.findings?.class_probabilities ?? {};
+  const winner = result.diagnosis;
+  const tone = result.status === "normal" ? "text-secondary border-secondary/30"
+             : result.status === "warning" ? "text-warning border-warning/30"
+             : "text-destructive border-destructive/30";
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-        <p className="text-xs text-muted-foreground font-mono">RESULT · {result.id.toUpperCase()} · {result.date}</p>
+        <p className="text-xs text-muted-foreground font-mono">RESULT · {result.id.slice(0, 8).toUpperCase()} · {new Date(result.created_at).toLocaleDateString()}</p>
         <h1 className="font-display text-4xl mt-1">ECG Analysis</h1>
       </motion.div>
 
-      <div className="grid lg:grid-cols-5 gap-6">
-        {/* Left — ECG visualization */}
-        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="lg:col-span-3 glass rounded-3xl p-6 overflow-hidden">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-display text-lg">Lead II · Rhythm Strip</h3>
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.max(0.6, z - 0.2))}><ZoomOut className="h-4 w-4" /></Button>
-              <span className="text-xs font-mono w-10 text-center">{(zoom * 100).toFixed(0)}%</span>
-              <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.min(2, z + 0.2))}><ZoomIn className="h-4 w-4" /></Button>
-            </div>
+      {/* Doctor review banner */}
+      {result.doctor_reviewed && result.doctor_notes && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+          className="mb-6 glass rounded-3xl p-5 border border-primary/30 flex items-start gap-4">
+          <Sparkles className="h-5 w-5 text-primary mt-0.5" />
+          <div className="flex-1">
+            <div className="font-display text-lg mb-1">Your doctor has reviewed this ECG</div>
+            <p className="text-sm text-muted-foreground leading-relaxed">{result.doctor_notes}</p>
+            {result.doctor_diagnosis_override && (
+              <p className="text-xs text-primary font-mono mt-2">Updated diagnosis: {result.doctor_diagnosis_override}</p>
+            )}
           </div>
-          <div className="rounded-2xl border border-white/5 bg-surface-1/50 p-4 overflow-hidden">
-            <div style={{ transform: `scaleY(${zoom})`, transformOrigin: "center" }}>
-              <EcgCanvas height={260} speed={0} />
+        </motion.div>
+      )}
+      {!result.doctor_reviewed && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          className="mb-6 rounded-2xl p-4 border border-secondary/30 bg-secondary/5 text-sm text-secondary flex items-center gap-3">
+          <span className="h-2 w-2 rounded-full bg-secondary animate-pulse" />
+          Your ECG is in the doctor review queue. You'll be notified when reviewed.
+        </motion.div>
+      )}
+
+      <div className="grid lg:grid-cols-5 gap-6">
+        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="lg:col-span-3 space-y-6">
+          {result.image_url && (
+            <div className="glass rounded-3xl p-6">
+              <h3 className="font-display text-lg mb-4">ECG Image</h3>
+              <div className="rounded-2xl border border-white/5 bg-surface-1/50 p-3 overflow-hidden">
+                <img src={result.image_url} alt="ECG" className="w-full rounded-xl" />
+              </div>
             </div>
-            <div className="flex flex-wrap gap-3 mt-4 text-xs">
-              <Tag color="bg-secondary/15 text-secondary border-secondary/30">P wave</Tag>
-              <Tag color="bg-primary/15 text-primary border-primary/30">QRS complex</Tag>
-              <Tag color="bg-warning/15 text-warning border-warning/30">T wave</Tag>
+          )}
+
+          {/* Class probability breakdown */}
+          <div className="glass rounded-3xl p-6">
+            <h3 className="font-display text-lg mb-1">Class Probability Breakdown</h3>
+            <p className="text-xs text-muted-foreground font-mono mb-5">ConvNeXt-Base · 4-class classifier</p>
+            <div className="space-y-4">
+              {CLASSES.map((cls) => {
+                const raw = probs[cls] ?? 0;
+                const pct = Math.round(raw * 100);
+                const isWinner = cls === winner;
+                return (
+                  <div key={cls}>
+                    <div className="flex items-center justify-between mb-1.5 text-sm">
+                      <span className={`${isWinner ? "font-medium" : "text-muted-foreground"}`}>{cls}</span>
+                      <span className="font-mono text-xs">{pct}%</span>
+                    </div>
+                    <div className="h-2.5 rounded-full bg-white/[0.04] overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${pct}%` }}
+                        transition={{ duration: 1.2, ease: "easeOut" }}
+                        className="h-full rounded-full"
+                        style={{
+                          backgroundColor: CLASS_COLORS[cls],
+                          boxShadow: isWinner ? `0 0 14px ${CLASS_COLORS[cls]}` : "none",
+                          opacity: isWinner ? 1 : 0.7,
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </motion.div>
 
-        {/* Right — Diagnosis */}
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="lg:col-span-2 space-y-5">
-          <div className={`glass rounded-3xl p-6 border ${tone.border}`}>
+          <div className={`glass rounded-3xl p-6 border ${tone}`}>
             <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-2">Diagnosis</p>
-            <h2 className={`font-display text-2xl mb-5 ${tone.text}`}>{result.diagnosis.toUpperCase()}</h2>
-
+            <h2 className={`font-display text-2xl mb-5 ${tone.split(" ")[0]}`}>{result.diagnosis?.toUpperCase()}</h2>
             <div className="flex items-center gap-5">
               <ConfidenceRing value={conf} />
               <div>
@@ -69,46 +149,30 @@ const Results = () => {
 
           <div className="glass rounded-3xl p-6">
             <h3 className="font-display text-lg mb-3">In plain English</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">{result.explanation}</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">{result.explanation ?? "Your ECG has been analyzed."}</p>
           </div>
 
-          <div className="glass rounded-3xl p-6">
-            <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between">
-              <h3 className="font-display text-lg">Technical findings</h3>
-              {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </button>
-            {open && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-4 space-y-2.5">
-                {result.findings.map(f => (
-                  <div key={f.label} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
-                    <div className="flex items-center gap-2.5">
-                      <span className={`h-2 w-2 rounded-full ${f.normal ? "bg-success" : "bg-warning"}`} />
-                      <span className="text-sm">{f.label}</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-mono text-sm">{f.value}</div>
-                      <div className="text-[10px] text-muted-foreground font-mono">{f.range}</div>
-                    </div>
-                  </div>
-                ))}
-              </motion.div>
-            )}
-          </div>
-
-          {result.risks.length > 0 && (
+          {result.findings?.processing_time_ms && (
             <div className="glass rounded-3xl p-6">
-              <h3 className="font-display text-lg mb-3">Risk factors detected</h3>
-              <div className="flex flex-wrap gap-2">
-                {result.risks.map(r => (
-                  <span key={r} className="px-3 py-1 rounded-full text-xs bg-warning/10 border border-warning/30 text-warning">{r}</span>
-                ))}
-              </div>
+              <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between">
+                <h3 className="font-display text-lg">Technical details</h3>
+                {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+              {open && (
+                <div className="mt-4 space-y-2 text-sm">
+                  <Row label="Model" value="ConvNeXt-Base" />
+                  <Row label="Inference time" value={`${result.findings.processing_time_ms} ms`} />
+                  <Row label="Classes" value="4" />
+                </div>
+              )}
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-3">
-            <Link to="/consult"><Button variant="hero" className="w-full">Schedule consult <ArrowRight /></Button></Link>
-            <Button variant="ghost"><Download className="h-4 w-4" /> Report PDF</Button>
+            <Link to="/consult"><Button variant="hero" className="w-full"><MessageSquare className="h-4 w-4" /> Consult</Button></Link>
+            <Button variant="ghost" onClick={() => result.image_url && window.open(result.image_url)}>
+              <Download className="h-4 w-4" /> Image
+            </Button>
           </div>
         </motion.div>
       </div>
@@ -116,8 +180,11 @@ const Results = () => {
   );
 };
 
-const Tag = ({ children, color }: { children: React.ReactNode; color: string }) => (
-  <span className={`px-2.5 py-1 rounded-full border font-mono ${color}`}>{children}</span>
+const Row = ({ label, value }: { label: string; value: string }) => (
+  <div className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+    <span className="text-muted-foreground">{label}</span>
+    <span className="font-mono text-xs">{value}</span>
+  </div>
 );
 
 const ConfidenceRing = ({ value }: { value: number }) => {

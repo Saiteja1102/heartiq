@@ -5,42 +5,99 @@ import { UploadCloud, FileCheck2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NeuralLoader } from "@/components/NeuralLoader";
 import { Logo } from "@/components/Logo";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
 const stages = [
-  "Preprocessing signal…",
-  "Detecting P-Q-R-S-T waves…",
-  "Running CNN inference…",
-  "Cross-checking with cardiology atlas…",
-  "Generating report…",
+  "Validating image…",
+  "Uploading to secure storage…",
+  "ConvNeXt AI is analyzing your ECG…",
+  "Cross-checking class probabilities…",
+  "Saving report…",
 ];
 
 const UploadPage = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [drag, setDrag] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [stage, setStage] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const navigate = useNavigate();
 
-  const onFile = (f: File) => setFile(f);
+  const onFile = (f: File) => {
+    if (!["image/png", "image/jpeg", "image/jpg"].includes(f.type)) {
+      toast.error("Only PNG or JPG images supported");
+      return;
+    }
+    if (f.size > 10 * 1024 * 1024) {
+      toast.error("File must be under 10 MB");
+      return;
+    }
+    setFile(f);
+  };
 
   const onDrop = (e: DragEvent) => {
     e.preventDefault(); setDrag(false);
     if (e.dataTransfer.files[0]) onFile(e.dataTransfer.files[0]);
   };
 
-  const submit = () => {
-    if (!file) return;
-    setAnalyzing(true);
-    let i = 0;
-    const t = setInterval(() => {
-      i++;
-      setStage(i);
-      if (i >= stages.length - 1) {
-        clearInterval(t);
-        setTimeout(() => navigate("/results/ecg_001"), 1200);
-      }
-    }, 900);
+  const submit = async () => {
+    if (!file || !user) return;
+    setAnalyzing(true); setStage(0);
+
+    try {
+      // Stage 1: validate (already done)
+      await new Promise(r => setTimeout(r, 400));
+
+      // Stage 2: upload to storage
+      setStage(1);
+      const path = `${user.id}/${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
+      const { error: upErr } = await supabase.storage.from("ecg_uploads").upload(path, file);
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("ecg_uploads").getPublicUrl(path);
+      const imageUrl = pub.publicUrl;
+
+      // Stage 3: call model
+      setStage(2);
+      const { data: pred, error: pErr } = await supabase.functions.invoke("ecg-predict", { body: { imageUrl } });
+      if (pErr) throw pErr;
+      if ((pred as any)?.error) throw new Error((pred as any).error);
+
+      // Stage 4
+      setStage(3);
+      await new Promise(r => setTimeout(r, 400));
+
+      // Stage 5: save to db
+      setStage(4);
+      const diagnosis = (pred as any).prediction ?? "Unknown";
+      const confidence = Math.round(((pred as any).confidence ?? 0) * 100);
+      const status = diagnosis.toLowerCase().includes("normal") ? "normal"
+                   : diagnosis.toLowerCase().includes("infarct") ? "critical" : "warning";
+
+      const { data: inserted, error: dbErr } = await supabase
+        .from("ecg_uploads")
+        .insert({
+          user_id: user.id,
+          file_name: file.name,
+          image_url: imageUrl,
+          diagnosis,
+          confidence,
+          status,
+          findings: pred as any,
+          explanation: `AI model classified this ECG as "${diagnosis}" with ${confidence}% confidence.`,
+        })
+        .select("id")
+        .single();
+      if (dbErr) throw dbErr;
+
+      navigate(`/results/${(inserted as any).id}`);
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e.message ?? "Analysis failed");
+      setAnalyzing(false);
+    }
   };
 
   return (
@@ -49,7 +106,7 @@ const UploadPage = () => {
         <div className="text-center mb-10">
           <p className="text-xs text-secondary font-mono tracking-widest uppercase mb-3">Upload ECG</p>
           <h1 className="font-display text-4xl md:text-5xl">Drop your ECG. Get answers.</h1>
-          <p className="text-muted-foreground mt-3">Photo, PDF, or raw signal CSV — we handle them all.</p>
+          <p className="text-muted-foreground mt-3">PNG or JPG image, up to 10 MB.</p>
         </div>
 
         {!file ? (
@@ -63,10 +120,10 @@ const UploadPage = () => {
             <motion.div animate={drag ? { y: -6 } : { y: 0 }} className="mx-auto h-20 w-20 rounded-2xl bg-primary/10 border border-primary/20 grid place-items-center mb-6">
               <UploadCloud className="h-9 w-9 text-primary" />
             </motion.div>
-            <h3 className="font-display text-2xl mb-2">Drag & drop your ECG file</h3>
+            <h3 className="font-display text-2xl mb-2">Drag & drop your ECG image</h3>
             <p className="text-muted-foreground text-sm mb-4">or click to browse</p>
-            <p className="text-xs text-muted-foreground/60 font-mono">.JPG · .PNG · .PDF · .CSV (max 25 MB)</p>
-            <input ref={inputRef} type="file" hidden accept=".jpg,.jpeg,.png,.pdf,.csv" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
+            <p className="text-xs text-muted-foreground/60 font-mono">.PNG · .JPG (max 10 MB)</p>
+            <input ref={inputRef} type="file" hidden accept="image/png,image/jpeg" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
           </motion.div>
         ) : (
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-3xl p-8">
@@ -76,7 +133,7 @@ const UploadPage = () => {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-medium truncate">{file.name}</div>
-                <div className="text-xs text-muted-foreground font-mono">{(file.size / 1024).toFixed(1)} KB · {file.name.endsWith(".csv") ? "Signal file detected ✓" : "Image file detected ✓"}</div>
+                <div className="text-xs text-muted-foreground font-mono">{(file.size / 1024).toFixed(1)} KB · Image detected ✓</div>
               </div>
               <button onClick={() => setFile(null)} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
             </div>
@@ -88,7 +145,6 @@ const UploadPage = () => {
         )}
       </div>
 
-      {/* Analyzing overlay */}
       <AnimatePresence>
         {analyzing && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -100,8 +156,9 @@ const UploadPage = () => {
                   <Logo size="lg" />
                 </div>
               </div>
-              <h2 className="font-display text-2xl mb-2">AI is analyzing your ECG…</h2>
-              <motion.p key={stage} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="text-muted-foreground font-mono text-sm">
+              <h2 className="font-display text-2xl mb-2">ConvNeXt AI is analyzing your ECG…</h2>
+              <p className="text-xs text-muted-foreground font-mono mb-3">Checking for: Normal · Arrhythmia · MI · ST Depression</p>
+              <motion.p key={stage} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="text-secondary font-mono text-sm">
                 {stages[stage]}
               </motion.p>
             </div>

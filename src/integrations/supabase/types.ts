@@ -14,6 +14,77 @@ export type Database = {
   }
   public: {
     Tables: {
+      availability_slots: {
+        Row: {
+          created_at: string
+          day_of_week: number
+          doctor_id: string
+          end_time: string
+          id: string
+          start_time: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: number
+          doctor_id: string
+          end_time: string
+          id?: string
+          start_time: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number
+          doctor_id?: string
+          end_time?: string
+          id?: string
+          start_time?: string
+        }
+        Relationships: []
+      }
+      call_sessions: {
+        Row: {
+          conversation_id: string | null
+          created_at: string
+          duration_seconds: number | null
+          ended_at: string | null
+          id: string
+          initiator_id: string
+          receiver_id: string
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          initiator_id: string
+          receiver_id: string
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          initiator_id?: string
+          receiver_id?: string
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_sessions_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       consultations: {
         Row: {
           created_at: string
@@ -44,15 +115,48 @@ export type Database = {
         }
         Relationships: []
       }
+      conversations: {
+        Row: {
+          created_at: string
+          doctor_id: string
+          id: string
+          last_message_at: string
+          patient_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          doctor_id: string
+          id?: string
+          last_message_at?: string
+          patient_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          doctor_id?: string
+          id?: string
+          last_message_at?: string
+          patient_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
       ecg_uploads: {
         Row: {
           confidence: number | null
           created_at: string
           diagnosis: string | null
+          doctor_diagnosis_override: string | null
+          doctor_notes: string | null
+          doctor_reviewed: boolean
           explanation: string | null
           file_name: string | null
           findings: Json | null
           id: string
+          image_url: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           status: string
           user_id: string
         }
@@ -60,10 +164,16 @@ export type Database = {
           confidence?: number | null
           created_at?: string
           diagnosis?: string | null
+          doctor_diagnosis_override?: string | null
+          doctor_notes?: string | null
+          doctor_reviewed?: boolean
           explanation?: string | null
           file_name?: string | null
           findings?: Json | null
           id?: string
+          image_url?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           status?: string
           user_id: string
         }
@@ -71,39 +181,236 @@ export type Database = {
           confidence?: number | null
           created_at?: string
           diagnosis?: string | null
+          doctor_diagnosis_override?: string | null
+          doctor_notes?: string | null
+          doctor_reviewed?: boolean
           explanation?: string | null
           file_name?: string | null
           findings?: Json | null
           id?: string
+          image_url?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           status?: string
           user_id?: string
         }
         Relationships: []
       }
-      profiles: {
+      messages: {
         Row: {
-          avatar_url: string | null
+          content: string | null
+          conversation_id: string
           created_at: string
-          display_name: string | null
+          file_name: string | null
+          file_url: string | null
           id: string
-          updated_at: string
+          is_read: boolean
+          message_type: string
+          sender_id: string
+        }
+        Insert: {
+          content?: string | null
+          conversation_id: string
+          created_at?: string
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          is_read?: boolean
+          message_type?: string
+          sender_id: string
+        }
+        Update: {
+          content?: string | null
+          conversation_id?: string
+          created_at?: string
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          is_read?: boolean
+          message_type?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mock_doctors: {
+        Row: {
+          available: boolean
+          avatar_url: string | null
+          bio: string | null
+          consultation_fee: number | null
+          created_at: string
+          display_name: string
+          id: string
+          license_number: string | null
+          rating: number | null
+          specialty: string
+          years_experience: number | null
+        }
+        Insert: {
+          available?: boolean
+          avatar_url?: string | null
+          bio?: string | null
+          consultation_fee?: number | null
+          created_at?: string
+          display_name: string
+          id?: string
+          license_number?: string | null
+          rating?: number | null
+          specialty: string
+          years_experience?: number | null
+        }
+        Update: {
+          available?: boolean
+          avatar_url?: string | null
+          bio?: string | null
+          consultation_fee?: number | null
+          created_at?: string
+          display_name?: string
+          id?: string
+          license_number?: string | null
+          rating?: number | null
+          specialty?: string
+          years_experience?: number | null
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          related_id: string | null
+          title: string
+          type: string
           user_id: string
         }
         Insert: {
-          avatar_url?: string | null
+          body?: string | null
           created_at?: string
-          display_name?: string | null
           id?: string
-          updated_at?: string
+          is_read?: boolean
+          related_id?: string | null
+          title: string
+          type: string
           user_id: string
         }
         Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          related_id?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      patient_notes: {
+        Row: {
+          content: string
+          created_at: string
+          doctor_id: string
+          id: string
+          patient_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          doctor_id: string
+          id?: string
+          patient_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          doctor_id?: string
+          id?: string
+          patient_id?: string
+        }
+        Relationships: []
+      }
+      prescriptions: {
+        Row: {
+          content: string
+          created_at: string
+          doctor_id: string
+          id: string
+          patient_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          doctor_id: string
+          id?: string
+          patient_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          doctor_id?: string
+          id?: string
+          patient_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          available: boolean
+          avatar_url: string | null
+          bio: string | null
+          consultation_fee: number | null
+          created_at: string
+          display_name: string | null
+          id: string
+          is_verified: boolean
+          license_number: string | null
+          role: string
+          specialty: string | null
+          updated_at: string
+          user_id: string
+          years_experience: number | null
+        }
+        Insert: {
+          available?: boolean
           avatar_url?: string | null
+          bio?: string | null
+          consultation_fee?: number | null
           created_at?: string
           display_name?: string | null
           id?: string
+          is_verified?: boolean
+          license_number?: string | null
+          role?: string
+          specialty?: string | null
+          updated_at?: string
+          user_id: string
+          years_experience?: number | null
+        }
+        Update: {
+          available?: boolean
+          avatar_url?: string | null
+          bio?: string | null
+          consultation_fee?: number | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          is_verified?: boolean
+          license_number?: string | null
+          role?: string
+          specialty?: string | null
           updated_at?: string
           user_id?: string
+          years_experience?: number | null
         }
         Relationships: []
       }
