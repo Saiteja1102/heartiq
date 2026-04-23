@@ -25,9 +25,9 @@ const ChatPage = () => {
   }, [conversations, activeId, setParams]);
 
   return (
-    <div className="h-[calc(100vh-65px)] lg:h-[calc(100vh-73px)] flex">
+    <div className="flex bg-background" style={{ height: "calc(100dvh - 57px)", minHeight: 480 }}>
       {/* Sidebar */}
-      <aside className={`${active ? "hidden md:flex" : "flex"} flex-col w-full md:w-[320px] border-r border-white/5 bg-sidebar/40`}>
+      <aside className={`${active ? "hidden md:flex" : "flex"} flex-col w-full md:w-[320px] border-r border-white/5 bg-sidebar/40 min-h-0`}>
         <div className="px-5 py-5">
           <h2 className="font-display text-2xl">Messages</h2>
           <p className="text-xs text-muted-foreground mt-1">{conversations.length} conversation{conversations.length !== 1 ? "s" : ""}</p>
