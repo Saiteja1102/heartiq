@@ -97,7 +97,7 @@ export const Chatbot = () => {
       <AnimatePresence>
         {open && (
           <motion.div initial={{ opacity: 0, y: 30, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 30, scale: 0.95 }}
-            className="fixed bottom-24 right-4 lg:right-8 z-50 w-[calc(100vw-2rem)] sm:w-[400px] h-[600px] max-h-[80vh] glass-strong rounded-3xl flex flex-col overflow-hidden shadow-panel">
+            className="fixed bottom-44 lg:bottom-24 right-4 lg:right-8 z-50 w-[calc(100vw-2rem)] sm:w-[400px] h-[600px] max-h-[70vh] glass-strong rounded-3xl flex flex-col overflow-hidden shadow-panel">
             <div className="p-4 border-b border-white/5 flex items-center gap-3">
               <div className="h-9 w-9 rounded-xl bg-gradient-teal grid place-items-center">
                 <Sparkles className="h-4 w-4 text-secondary-foreground" />
