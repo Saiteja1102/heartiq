@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Search, Users } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Search, Users, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 
 const Patients = () => {
+  const navigate = useNavigate();
   const [patients, setPatients] = useState<any[]>([]);
   const [q, setQ] = useState("");
 
@@ -50,12 +52,14 @@ const Patients = () => {
                 <th className="text-left p-4">Last ECG</th>
                 <th className="text-left p-4">Diagnosis</th>
                 <th className="text-left p-4">Confidence</th>
+                <th className="w-10" />
               </tr>
             </thead>
             <tbody>
               {filtered.map((p, i) => (
                 <motion.tr key={p.user_id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
-                  className="border-t border-white/5 hover:bg-white/[0.02]">
+                  onClick={() => navigate(`/doctor/patients/${p.user_id}`)}
+                  className="border-t border-white/5 hover:bg-white/[0.04] cursor-pointer transition">
                   <td className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="h-9 w-9 rounded-full bg-gradient-coral grid place-items-center font-mono text-xs text-white">
@@ -67,6 +71,7 @@ const Patients = () => {
                   <td className="p-4 font-mono text-xs text-muted-foreground">{new Date(p.last.created_at).toLocaleDateString()}</td>
                   <td className="p-4">{p.last.diagnosis ?? "—"}</td>
                   <td className="p-4 font-mono text-secondary">{p.last.confidence ?? 0}%</td>
+                  <td className="p-4 text-muted-foreground"><ChevronRight className="h-4 w-4" /></td>
                 </motion.tr>
               ))}
             </tbody>

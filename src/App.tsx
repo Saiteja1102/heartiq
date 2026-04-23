@@ -20,6 +20,7 @@ import { Chatbot } from "./components/Chatbot";
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
 import EcgQueue from "./pages/doctor/EcgQueue";
 import Patients from "./pages/doctor/Patients";
+import PatientDetail from "./pages/doctor/PatientDetail";
 import Appointments from "./pages/doctor/Appointments";
 import Availability from "./pages/doctor/Availability";
 
@@ -51,6 +52,7 @@ const App = () => (
             <Route element={<DoctorShell />}>
               <Route path="/doctor/dashboard" element={<DoctorDashboard />} />
               <Route path="/doctor/patients" element={<Patients />} />
+              <Route path="/doctor/patients/:id" element={<PatientDetail />} />
               <Route path="/doctor/ecg-queue" element={<EcgQueue />} />
               <Route path="/doctor/appointments" element={<Appointments />} />
               <Route path="/doctor/availability" element={<Availability />} />
