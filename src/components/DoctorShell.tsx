@@ -30,7 +30,7 @@ export const DoctorShell = () => {
     { to: "/doctor/patients", label: "Patients", icon: Users },
     { to: "/doctor/ecg-queue", label: "ECG Queue", icon: FileSearch },
     { to: "/doctor/appointments", label: "Appointments", icon: Calendar },
-    { to: "/chat", label: "Messages", icon: MessageSquare, badge: totalUnread },
+    { to: "/doctor/chat", label: "Messages", icon: MessageSquare, badge: totalUnread },
     { to: "/doctor/availability", label: "Availability", icon: Clock },
   ];
 
