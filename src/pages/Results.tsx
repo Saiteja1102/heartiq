@@ -130,13 +130,13 @@ const Results = () => {
         </motion.div>
       )}
 
-      <div className="grid lg:grid-cols-5 gap-6">
+      <div ref={reportRef} className="grid lg:grid-cols-5 gap-6">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="lg:col-span-3 space-y-6">
           {result.image_url && (
             <div className="glass rounded-3xl p-6">
               <h3 className="font-display text-lg mb-4">ECG Image</h3>
               <div className="rounded-2xl border border-white/5 bg-surface-1/50 p-3 overflow-hidden">
-                <img src={result.image_url} alt="ECG" className="w-full rounded-xl" />
+                <img src={result.image_url} alt="ECG" crossOrigin="anonymous" className="w-full rounded-xl" />
               </div>
             </div>
           )}
@@ -209,14 +209,17 @@ const Results = () => {
               )}
             </div>
           )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <Link to="/consult"><Button variant="hero" className="w-full"><MessageSquare className="h-4 w-4" /> Consult</Button></Link>
-            <Button variant="ghost" onClick={() => result.image_url && window.open(result.image_url)}>
-              <Download className="h-4 w-4" /> Image
-            </Button>
-          </div>
         </motion.div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
+        <Link to="/consult"><Button variant="hero" className="w-full"><MessageSquare className="h-4 w-4" /> Consult</Button></Link>
+        <Button variant="ghost" onClick={() => result.image_url && window.open(result.image_url)}>
+          <Download className="h-4 w-4" /> Image
+        </Button>
+        <Button variant="ghost" disabled={exporting} onClick={exportPdf}>
+          <FileDown className="h-4 w-4" /> {exporting ? "Generating…" : "Download PDF"}
+        </Button>
       </div>
     </div>
   );
