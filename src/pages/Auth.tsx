@@ -40,7 +40,7 @@ const AuthPage = () => {
         if (error) throw error;
         toast.success("Welcome to HeartIQ");
       } else {
-        const { error } = await supabase.auth.signInWithPassword(data);
+        const { error } = await supabase.auth.signInWithPassword({ email: data.email, password: data.password });
         if (error) throw error;
         toast.success("Welcome back");
       }
