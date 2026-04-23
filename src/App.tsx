@@ -13,10 +13,14 @@ import Consult from "./pages/Consult";
 import Medicines from "./pages/Medicines";
 import Chat from "./pages/Chat";
 import Call from "./pages/Call";
+import Vitals from "./pages/Vitals";
 import NotFound from "./pages/NotFound";
 import { AppShell } from "./components/AppShell";
 import { DoctorShell } from "./components/DoctorShell";
 import { Chatbot } from "./components/Chatbot";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { OfflineBanner } from "./components/OfflineBanner";
+import { SmartWatchProvider } from "./context/SmartWatchContext";
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
 import EcgQueue from "./pages/doctor/EcgQueue";
 import Patients from "./pages/doctor/Patients";
@@ -27,13 +31,16 @@ import Availability from "./pages/doctor/Availability";
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <SmartWatchProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <OfflineBanner />
+            <BrowserRouter>
+              <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/call/:sessionId" element={<Call />} />
@@ -46,6 +53,7 @@ const App = () => (
               <Route path="/consult" element={<Consult />} />
               <Route path="/medicines" element={<Medicines />} />
               <Route path="/chat" element={<Chat />} />
+              <Route path="/vitals" element={<Vitals />} />
             </Route>
 
             {/* Doctor routes */}
@@ -58,13 +66,15 @@ const App = () => (
               <Route path="/doctor/availability" element={<Availability />} />
             </Route>
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <Chatbot />
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+              <Chatbot />
+            </BrowserRouter>
+          </TooltipProvider>
+        </SmartWatchProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;
