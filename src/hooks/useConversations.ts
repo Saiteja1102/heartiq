@@ -6,27 +6,19 @@ export type Conversation = {
   id: string;
   patient_id: string;
   doctor_id: string;
-  status: string;
+  created_at: string;
+  updated_at: string;
+  last_message: string;
   last_message_at: string;
-  created_at: string;
-  // joined
-  other_name?: string;
-  other_role?: string;
-  other_specialty?: string | null;
-  unread_count?: number;
-  last_message_preview?: string | null;
-};
-
-export type Message = {
-  id: string;
-  conversation_id: string;
-  sender_id: string;
-  content: string | null;
-  message_type: "text" | "file" | "ecg_report";
-  file_url: string | null;
-  file_name: string | null;
-  is_read: boolean;
-  created_at: string;
+  patient_unread: number;
+  doctor_unread: number;
+  // joined / derived
+  other_user_id: string;
+  other_name: string;
+  other_role: "patient" | "doctor";
+  other_specialty: string | null;
+  other_avatar: string | null;
+  unread: number;
 };
 
 export const useConversations = () => {
@@ -43,52 +35,32 @@ export const useConversations = () => {
       .or(`patient_id.eq.${user.id},doctor_id.eq.${user.id}`)
       .order("last_message_at", { ascending: false });
 
-    const list = (convs as Conversation[]) ?? [];
+    const list = convs ?? [];
     if (list.length === 0) {
       setConversations([]);
       setLoading(false);
       return;
     }
-
-    // Fetch counterpart profiles
-    const otherIds = list.map((c) => (c.patient_id === user.id ? c.doctor_id : c.patient_id));
+    const otherIds = list.map((c: any) =>
+      c.patient_id === user.id ? c.doctor_id : c.patient_id
+    );
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("user_id, display_name, role, specialty")
+      .select("user_id, display_name, role, specialty, avatar_url")
       .in("user_id", otherIds);
 
-    // Last message + unread count per conversation
-    const ids = list.map((c) => c.id);
-    const { data: msgs } = await supabase
-      .from("messages")
-      .select("conversation_id, content, created_at, sender_id, is_read, message_type, file_name")
-      .in("conversation_id", ids)
-      .order("created_at", { ascending: false });
-
-    const lastByConv: Record<string, Message> = {};
-    const unreadByConv: Record<string, number> = {};
-    (msgs ?? []).forEach((m: any) => {
-      if (!lastByConv[m.conversation_id]) lastByConv[m.conversation_id] = m;
-      if (!m.is_read && m.sender_id !== user.id) {
-        unreadByConv[m.conversation_id] = (unreadByConv[m.conversation_id] ?? 0) + 1;
-      }
-    });
-
-    const enriched: Conversation[] = list.map((c) => {
+    const enriched: Conversation[] = list.map((c: any) => {
       const otherId = c.patient_id === user.id ? c.doctor_id : c.patient_id;
       const p = (profiles ?? []).find((x: any) => x.user_id === otherId);
-      const lm = lastByConv[c.id];
-      let preview: string | null = null;
-      if (lm) {
-        preview = lm.message_type === "text" ? (lm.content ?? "") : `📎 ${lm.file_name ?? "Attachment"}`;
-      }
+      const isPatient = c.patient_id === user.id;
       return {
         ...c,
+        other_user_id: otherId,
         other_name: (p as any)?.display_name ?? "Unknown",
-        other_role: (p as any)?.role ?? "patient",
+        other_role: ((p as any)?.role ?? "patient") as "patient" | "doctor",
         other_specialty: (p as any)?.specialty ?? null,
-        unread_count: unreadByConv[c.id] ?? 0,
-        last_message_preview: preview,
+        other_avatar: (p as any)?.avatar_url ?? null,
+        unread: isPatient ? c.patient_unread : c.doctor_unread,
       };
     });
     setConversations(enriched);
@@ -100,7 +72,6 @@ export const useConversations = () => {
     refresh();
     const channel = supabase
       .channel(`conv-list:${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, () => refresh())
       .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, () => refresh())
       .subscribe();
     return () => {
@@ -108,12 +79,15 @@ export const useConversations = () => {
     };
   }, [user, refresh]);
 
-  const totalUnread = conversations.reduce((sum, c) => sum + (c.unread_count ?? 0), 0);
+  const totalUnread = conversations.reduce((sum, c) => sum + (c.unread ?? 0), 0);
 
   return { conversations, loading, refresh, totalUnread };
 };
 
-export const getOrCreateConversation = async (patientId: string, doctorId: string): Promise<string | null> => {
+export const getOrCreateConversation = async (
+  patientId: string,
+  doctorId: string
+): Promise<string | null> => {
   const { data: existing } = await supabase
     .from("conversations")
     .select("id")

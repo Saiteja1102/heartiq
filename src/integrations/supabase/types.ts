@@ -14,6 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
+      alert_thresholds: {
+        Row: {
+          alerts_enabled: boolean
+          created_at: string
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          id: string
+          max_heart_rate: number
+          min_heart_rate: number
+          min_spo2: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          alerts_enabled?: boolean
+          created_at?: string
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          id?: string
+          max_heart_rate?: number
+          min_heart_rate?: number
+          min_spo2?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          alerts_enabled?: boolean
+          created_at?: string
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          id?: string
+          max_heart_rate?: number
+          min_heart_rate?: number
+          min_spo2?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          metadata: Json | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          metadata?: Json | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          metadata?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       availability_slots: {
         Row: {
           created_at: string
@@ -75,15 +144,7 @@ export type Database = {
           started_at?: string | null
           status?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "call_sessions_conversation_id_fkey"
-            columns: ["conversation_id"]
-            isOneToOne: false
-            referencedRelation: "conversations"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       consultations: {
         Row: {
@@ -119,26 +180,35 @@ export type Database = {
         Row: {
           created_at: string
           doctor_id: string
+          doctor_unread: number
           id: string
+          last_message: string
           last_message_at: string
           patient_id: string
-          status: string
+          patient_unread: number
+          updated_at: string
         }
         Insert: {
           created_at?: string
           doctor_id: string
+          doctor_unread?: number
           id?: string
+          last_message?: string
           last_message_at?: string
           patient_id: string
-          status?: string
+          patient_unread?: number
+          updated_at?: string
         }
         Update: {
           created_at?: string
           doctor_id?: string
+          doctor_unread?: number
           id?: string
+          last_message?: string
           last_message_at?: string
           patient_id?: string
-          status?: string
+          patient_unread?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -198,37 +268,40 @@ export type Database = {
       }
       messages: {
         Row: {
-          content: string | null
+          content: string
           conversation_id: string
           created_at: string
           file_name: string | null
+          file_size: number | null
           file_url: string | null
           id: string
           is_read: boolean
-          message_type: string
           sender_id: string
+          type: string
         }
         Insert: {
-          content?: string | null
+          content?: string
           conversation_id: string
           created_at?: string
           file_name?: string | null
+          file_size?: number | null
           file_url?: string | null
           id?: string
           is_read?: boolean
-          message_type?: string
           sender_id: string
+          type?: string
         }
         Update: {
-          content?: string | null
+          content?: string
           conversation_id?: string
           created_at?: string
           file_name?: string | null
+          file_size?: number | null
           file_url?: string | null
           id?: string
           is_read?: boolean
-          message_type?: string
           sender_id?: string
+          type?: string
         }
         Relationships: [
           {
@@ -371,13 +444,18 @@ export type Database = {
           consultation_fee: number | null
           created_at: string
           display_name: string | null
+          dob: string | null
+          gender: string | null
+          height_cm: number | null
           id: string
           is_verified: boolean
           license_number: string | null
+          onboarding_completed: boolean
           role: string
           specialty: string | null
           updated_at: string
           user_id: string
+          weight_kg: number | null
           years_experience: number | null
         }
         Insert: {
@@ -387,13 +465,18 @@ export type Database = {
           consultation_fee?: number | null
           created_at?: string
           display_name?: string | null
+          dob?: string | null
+          gender?: string | null
+          height_cm?: number | null
           id?: string
           is_verified?: boolean
           license_number?: string | null
+          onboarding_completed?: boolean
           role?: string
           specialty?: string | null
           updated_at?: string
           user_id: string
+          weight_kg?: number | null
           years_experience?: number | null
         }
         Update: {
@@ -403,14 +486,58 @@ export type Database = {
           consultation_fee?: number | null
           created_at?: string
           display_name?: string | null
+          dob?: string | null
+          gender?: string | null
+          height_cm?: number | null
           id?: string
           is_verified?: boolean
           license_number?: string | null
+          onboarding_completed?: boolean
           role?: string
           specialty?: string | null
           updated_at?: string
           user_id?: string
+          weight_kg?: number | null
           years_experience?: number | null
+        }
+        Relationships: []
+      }
+      vitals_readings: {
+        Row: {
+          anomaly_type: string | null
+          heart_rate: number | null
+          hrv: number | null
+          id: string
+          is_anomaly: boolean
+          recorded_at: string
+          source: string
+          spo2: number | null
+          steps: number | null
+          user_id: string
+        }
+        Insert: {
+          anomaly_type?: string | null
+          heart_rate?: number | null
+          hrv?: number | null
+          id?: string
+          is_anomaly?: boolean
+          recorded_at?: string
+          source: string
+          spo2?: number | null
+          steps?: number | null
+          user_id: string
+        }
+        Update: {
+          anomaly_type?: string | null
+          heart_rate?: number | null
+          hrv?: number | null
+          id?: string
+          is_anomaly?: boolean
+          recorded_at?: string
+          source?: string
+          spo2?: number | null
+          steps?: number | null
+          user_id?: string
         }
         Relationships: []
       }

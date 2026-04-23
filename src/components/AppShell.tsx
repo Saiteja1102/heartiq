@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import { Upload, FileText, Stethoscope, Pill, LogOut, LayoutDashboard, MessageSquare } from "lucide-react";
+import { Upload, FileText, Stethoscope, Pill, LogOut, LayoutDashboard, MessageSquare, Heart } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useConversations } from "@/hooks/useConversations";
 import { Logo } from "./Logo";
@@ -33,6 +33,7 @@ export const AppShell = () => {
     { to: "/results/latest", label: "My Results", icon: FileText },
     { to: "/consult", label: "Consult Doctor", icon: Stethoscope },
     { to: "/chat", label: "Messages", icon: MessageSquare, badge: totalUnread },
+    { to: "/vitals", label: "Vitals", icon: Heart },
     { to: "/medicines", label: "Medicines", icon: Pill },
   ];
 
