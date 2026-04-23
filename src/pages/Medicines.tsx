@@ -83,7 +83,7 @@ const Medicines = () => {
         <h1 className="font-display text-4xl md:text-5xl">Understand any cardiac medicine.</h1>
       </div>
 
-      <div className="relative mb-4">
+      <div className="relative mb-2">
         <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         <Input
           value={q}
@@ -93,6 +93,12 @@ const Medicines = () => {
           className="pl-12 h-16 text-lg bg-input/40 rounded-2xl"
         />
       </div>
+      {limitInfo.remaining <= 10 && (
+        <div className="mb-4 inline-flex items-center gap-1.5 text-[11px] font-mono text-muted-foreground">
+          <Clock className="h-3 w-3" /> {limitInfo.remaining} of 30 lookups left this hour
+          {limitInfo.remaining === 0 && limitInfo.resetAt && <span>· resets in {rl.formatReset(limitInfo.resetAt)}</span>}
+        </div>
+      )}
 
       {history.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-10">
