@@ -14,7 +14,99 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      consultations: {
+        Row: {
+          created_at: string
+          doctor_name: string
+          id: string
+          scheduled_at: string
+          specialty: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          doctor_name: string
+          id?: string
+          scheduled_at: string
+          specialty?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          doctor_name?: string
+          id?: string
+          scheduled_at?: string
+          specialty?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ecg_uploads: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          diagnosis: string | null
+          explanation: string | null
+          file_name: string | null
+          findings: Json | null
+          id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          diagnosis?: string | null
+          explanation?: string | null
+          file_name?: string | null
+          findings?: Json | null
+          id?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          diagnosis?: string | null
+          explanation?: string | null
+          file_name?: string | null
+          findings?: Json | null
+          id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
