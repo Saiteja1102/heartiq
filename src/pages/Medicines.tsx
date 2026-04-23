@@ -1,145 +1,222 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Sparkles, Pill, AlertTriangle, Ban, Ruler, Repeat, CheckCircle2 } from "lucide-react";
+import { Search, Sparkles, Pill, AlertTriangle, Ban, Ruler, Repeat, CheckCircle2, RefreshCw, Shield, Baby } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { mockMedicines } from "@/data/mock";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+type Interaction = { drug: string; severity: "Low" | "Medium" | "High"; effect: string };
+type MedInfo = {
+  name: string;
+  category: string;
+  description: string;
+  uses: string[];
+  sideEffects: string[];
+  dosage: { adult: string; child: string; elderly: string };
+  warnings: string[];
+  contraindications: string[];
+  interactions: Interaction[];
+  alternatives: string[];
+  storageInstructions: string;
+  pregnancySafety: string;
+};
+
+const HISTORY_KEY = "heartiq:med-history";
+
 const Medicines = () => {
   const [q, setQ] = useState("");
-  const [selected, setSelected] = useState<string | null>(null);
-  const [info, setInfo] = useState<any>(null);
+  const [info, setInfo] = useState<MedInfo | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<string[]>([]);
+  const [showAllSE, setShowAllSE] = useState(false);
 
-  const suggestions = q ? mockMedicines.filter(m => m.name.toLowerCase().includes(q.toLowerCase())).slice(0, 5) : [];
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(HISTORY_KEY);
+      if (raw) setHistory(JSON.parse(raw));
+    } catch {}
+  }, []);
+
+  const pushHistory = (name: string) => {
+    setHistory((prev) => {
+      const next = [name, ...prev.filter((x) => x.toLowerCase() !== name.toLowerCase())].slice(0, 5);
+      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
 
   const lookup = async (name: string) => {
-    setSelected(name); setQ(name); setInfo(null); setLoading(true);
+    if (!name.trim()) return;
+    setQ(name); setInfo(null); setError(null); setLoading(true); setShowAllSE(false);
     try {
-      const { data, error } = await supabase.functions.invoke("medicine-info", { body: { medicine: name } });
+      const { data, error } = await supabase.functions.invoke("groq-medicine", { body: { medicineName: name } });
       if (error) throw error;
-      setInfo(data);
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setInfo(data as MedInfo);
+      pushHistory(name);
     } catch (e: any) {
+      setError(e.message ?? "Could not load medicine info");
       toast.error("Couldn't fetch info");
-      // fallback structure
-      setInfo({
-        name, generic: mockMedicines.find(m => m.name === name)?.generic ?? name,
-        class: mockMedicines.find(m => m.name === name)?.class ?? "—",
-        what_it_is: "Information temporarily unavailable. Please try again.",
-        uses: [], side_effects: { common: [], serious: [], rare: [] }, do_not_use: [], dosage: [], alternatives: [],
-      });
     } finally { setLoading(false); }
   };
 
   return (
     <div className="p-6 md:p-10 max-w-5xl mx-auto">
-      <div className="text-center mb-12">
+      <div className="text-center mb-10">
         <p className="text-xs text-secondary font-mono tracking-widest uppercase mb-3">Medicine AI</p>
         <h1 className="font-display text-4xl md:text-5xl">Understand any cardiac medicine.</h1>
       </div>
 
-      <div className="relative mb-12">
+      <div className="relative mb-4">
         <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-        <Input value={q} onChange={(e) => { setQ(e.target.value); setSelected(null); }} placeholder="Search any medicine… e.g. Metoprolol"
-          className="pl-12 h-16 text-lg bg-input/40 rounded-2xl" />
-        {suggestions.length > 0 && !selected && (
-          <div className="absolute top-full mt-2 inset-x-0 glass-strong rounded-2xl p-2 z-10">
-            {suggestions.map(s => (
-              <button key={s.name} onClick={() => lookup(s.name)} className="w-full text-left px-4 py-2.5 rounded-xl hover:bg-white/5 flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-medium">{s.name}</div>
-                  <div className="text-xs text-muted-foreground">{s.generic}</div>
-                </div>
-                <span className="text-[10px] font-mono text-secondary px-2 py-0.5 rounded-full bg-secondary/10 border border-secondary/20">{s.class}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && lookup(q)}
+          placeholder="Search any medicine… e.g. Metoprolol"
+          className="pl-12 h-16 text-lg bg-input/40 rounded-2xl"
+        />
       </div>
+
+      {history.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-10">
+          <span className="text-xs text-muted-foreground font-mono mr-1 self-center">Recent:</span>
+          {history.map((h) => (
+            <button key={h} onClick={() => lookup(h)}
+              className="px-3 py-1 rounded-full text-xs bg-white/[0.04] border border-white/10 hover:border-secondary/40 hover:text-secondary transition">
+              {h}
+            </button>
+          ))}
+        </div>
+      )}
 
       <AnimatePresence mode="wait">
         {loading && (
-          <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="glass rounded-3xl p-12 text-center">
-            <Sparkles className="h-8 w-8 text-secondary mx-auto mb-3 animate-pulse" />
-            <p className="text-muted-foreground font-mono text-sm">Generating clinical summary…</p>
+          <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
+            <Skeleton className="h-32 rounded-3xl bg-white/[0.03]" />
+            <div className="grid sm:grid-cols-2 gap-4">
+              {[1,2,3,4].map(i => <Skeleton key={i} className="h-48 rounded-3xl bg-white/[0.03]" />)}
+            </div>
           </motion.div>
         )}
+
+        {error && !loading && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            className="glass rounded-3xl p-8 border border-destructive/30 text-center">
+            <AlertTriangle className="h-8 w-8 text-destructive mx-auto mb-3" />
+            <h3 className="font-display text-xl mb-2">Something went wrong</h3>
+            <p className="text-sm text-muted-foreground mb-4">{error}</p>
+            <Button variant="hero" onClick={() => lookup(q)}><RefreshCw className="h-4 w-4" /> Retry</Button>
+          </motion.div>
+        )}
+
         {info && !loading && (
-          <motion.div key={info.name} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="glass rounded-3xl p-8 md:p-10">
-            <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
-              <div>
-                <h2 className="font-display text-3xl">{info.name}</h2>
-                <p className="text-muted-foreground text-sm mt-1">{info.generic}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="px-3 py-1 rounded-full text-xs bg-secondary/10 border border-secondary/30 text-secondary font-mono">{info.class}</span>
-                <span className="px-3 py-1 rounded-full text-xs bg-primary/10 border border-primary/30 text-primary font-mono flex items-center gap-1">
+          <motion.div key={info.name} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }} className="space-y-6">
+            <div className="glass rounded-3xl p-8">
+              <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
+                <div>
+                  <h2 className="font-display text-3xl">{info.name}</h2>
+                  <span className="inline-block mt-2 px-3 py-1 rounded-full text-xs bg-secondary/10 border border-secondary/30 text-secondary font-mono">{info.category}</span>
+                </div>
+                <span className="px-3 py-1 rounded-full text-xs bg-primary/10 border border-primary/30 text-primary font-mono flex items-center gap-1 h-fit">
                   <Sparkles className="h-3 w-3" /> AI generated
                 </span>
               </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">{info.description}</p>
             </div>
 
-            <Section icon={Pill} title="What it is" tone="secondary">
-              <p className="text-sm text-muted-foreground leading-relaxed">{info.what_it_is}</p>
-            </Section>
-
-            {info.uses?.length > 0 && (
-              <Section icon={CheckCircle2} title="Uses" tone="success">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Card icon={CheckCircle2} title="Uses" tone="text-secondary">
                 <ul className="space-y-1.5 text-sm text-muted-foreground">
-                  {info.uses.map((u: string, i: number) => <li key={i} className="flex gap-2"><span className="text-success">▸</span>{u}</li>)}
+                  {info.uses?.map((u, i) => <li key={i} className="flex gap-2"><span className="text-secondary">▸</span>{u}</li>)}
                 </ul>
-              </Section>
-            )}
+              </Card>
 
-            {info.side_effects && (
-              <Section icon={AlertTriangle} title="Side effects" tone="warning">
-                <div className="grid sm:grid-cols-3 gap-4 text-sm">
-                  <SideGroup label="Common" items={info.side_effects.common} color="text-warning" />
-                  <SideGroup label="Serious" items={info.side_effects.serious} color="text-destructive" />
-                  <SideGroup label="Rare" items={info.side_effects.rare} color="text-muted-foreground" />
+              <Card icon={AlertTriangle} title="Side Effects" tone="text-primary">
+                <ul className="space-y-1.5 text-sm text-muted-foreground">
+                  {(showAllSE ? info.sideEffects : info.sideEffects?.slice(0, 4))?.map((s, i) => (
+                    <li key={i} className="flex gap-2"><span className="text-primary">•</span>{s}</li>
+                  ))}
+                </ul>
+                {info.sideEffects?.length > 4 && (
+                  <button onClick={() => setShowAllSE(v => !v)} className="text-xs text-secondary hover:underline mt-3">
+                    {showAllSE ? "Show less" : `Show all (${info.sideEffects.length})`}
+                  </button>
+                )}
+              </Card>
+
+              <Card icon={Ruler} title="Dosage" tone="text-blue-400">
+                <div className="space-y-2 text-sm">
+                  <DoseRow label="Adult" value={info.dosage?.adult} />
+                  <DoseRow label="Child" value={info.dosage?.child} />
+                  <DoseRow label="Elderly" value={info.dosage?.elderly} />
                 </div>
-              </Section>
-            )}
+              </Card>
 
-            {info.do_not_use?.length > 0 && (
-              <div className="mt-6 rounded-2xl bg-destructive/10 border border-destructive/30 p-5">
-                <div className="flex items-center gap-2 text-destructive font-display mb-3"><Ban className="h-4 w-4" /> Do NOT take if</div>
-                <ul className="space-y-1.5 text-sm text-foreground/80">
-                  {info.do_not_use.map((d: string, i: number) => <li key={i}>• {d}</li>)}
+              <Card icon={Ban} title="Warnings & Contraindications" tone="text-warning">
+                <ul className="space-y-1.5 text-sm text-muted-foreground">
+                  {[...(info.warnings ?? []), ...(info.contraindications ?? [])].map((w, i) => (
+                    <li key={i} className="flex gap-2"><span className="text-warning">⚠</span>{w}</li>
+                  ))}
                 </ul>
-              </div>
-            )}
+              </Card>
+            </div>
 
-            {info.dosage?.length > 0 && (
-              <Section icon={Ruler} title="Dosage guide" tone="secondary">
+            {info.interactions?.length > 0 && (
+              <div className="glass rounded-3xl p-6">
+                <h3 className="font-display text-lg mb-4 flex items-center gap-2"><Shield className="h-4 w-4 text-secondary" /> Drug Interactions</h3>
                 <div className="overflow-hidden rounded-xl border border-white/5">
                   <table className="w-full text-sm">
                     <thead className="bg-white/[0.03] text-xs font-mono uppercase text-muted-foreground">
-                      <tr><th className="text-left p-3">Population</th><th className="text-left p-3">Dose</th></tr>
+                      <tr>
+                        <th className="text-left p-3">Drug</th>
+                        <th className="text-left p-3">Severity</th>
+                        <th className="text-left p-3">Effect</th>
+                      </tr>
                     </thead>
                     <tbody>
-                      {info.dosage.map((d: any, i: number) => (
-                        <tr key={i} className="border-t border-white/5"><td className="p-3">{d.group}</td><td className="p-3 font-mono">{d.dose}</td></tr>
+                      {info.interactions.map((it, i) => (
+                        <tr key={i} className="border-t border-white/5">
+                          <td className="p-3 font-medium">{it.drug}</td>
+                          <td className="p-3"><SeverityBadge severity={it.severity} /></td>
+                          <td className="p-3 text-muted-foreground">{it.effect}</td>
+                        </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-              </Section>
+              </div>
             )}
 
             {info.alternatives?.length > 0 && (
-              <Section icon={Repeat} title="Alternatives" tone="secondary">
+              <Card icon={Repeat} title="Alternatives" tone="text-secondary">
                 <div className="flex flex-wrap gap-2">
-                  {info.alternatives.map((a: string) => (
-                    <button key={a} onClick={() => lookup(a)} className="px-3 py-1.5 rounded-full text-xs bg-white/5 border border-white/10 hover:border-secondary/40 hover:text-secondary transition">{a}</button>
+                  {info.alternatives.map(a => (
+                    <button key={a} onClick={() => lookup(a)}
+                      className="px-3 py-1.5 rounded-full text-xs bg-white/5 border border-white/10 hover:border-secondary/40 hover:text-secondary transition">
+                      {a}
+                    </button>
                   ))}
                 </div>
-              </Section>
+              </Card>
             )}
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Card icon={Pill} title="Storage" tone="text-muted-foreground">
+                <p className="text-sm text-muted-foreground">{info.storageInstructions}</p>
+              </Card>
+              <Card icon={Baby} title="Pregnancy Safety" tone="text-muted-foreground">
+                <p className="text-sm text-muted-foreground">{info.pregnancySafety}</p>
+              </Card>
+            </div>
           </motion.div>
         )}
-        {!info && !loading && !selected && (
+
+        {!info && !loading && !error && (
           <div className="text-center text-muted-foreground/60 text-sm font-mono">Try: Metoprolol · Apixaban · Atorvastatin</div>
         )}
       </AnimatePresence>
@@ -147,22 +224,29 @@ const Medicines = () => {
   );
 };
 
-const Section = ({ icon: Icon, title, tone, children }: any) => (
-  <div className="mt-6">
-    <div className={`flex items-center gap-2 font-display text-lg mb-3 ${tone === "secondary" ? "text-secondary" : tone === "warning" ? "text-warning" : tone === "success" ? "text-success" : ""}`}>
+const Card = ({ icon: Icon, title, tone, children }: any) => (
+  <div className="glass rounded-3xl p-6 hover:border-white/20 transition">
+    <div className={`flex items-center gap-2 font-display text-base mb-3 ${tone}`}>
       <Icon className="h-4 w-4" /> {title}
     </div>
     {children}
   </div>
 );
 
-const SideGroup = ({ label, items, color }: any) => (
-  <div className="rounded-xl bg-white/[0.02] border border-white/5 p-4">
-    <div className={`text-xs font-mono uppercase tracking-wider mb-2 ${color}`}>{label}</div>
-    <ul className="space-y-1 text-muted-foreground">
-      {items?.length ? items.map((s: string, i: number) => <li key={i}>• {s}</li>) : <li className="text-muted-foreground/50">—</li>}
-    </ul>
+const DoseRow = ({ label, value }: { label: string; value?: string }) => (
+  <div className="flex items-start gap-3 py-1.5 border-b border-white/5 last:border-0">
+    <span className="text-xs font-mono uppercase text-muted-foreground w-16 shrink-0 mt-0.5">{label}</span>
+    <span className="text-sm text-foreground/90">{value ?? "—"}</span>
   </div>
 );
+
+const SeverityBadge = ({ severity }: { severity: "Low" | "Medium" | "High" }) => {
+  const cfg = severity === "High"
+    ? "bg-destructive/15 border-destructive/30 text-destructive"
+    : severity === "Medium"
+    ? "bg-warning/15 border-warning/30 text-warning"
+    : "bg-success/15 border-success/30 text-success";
+  return <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono uppercase border ${cfg}`}>{severity}</span>;
+};
 
 export default Medicines;
