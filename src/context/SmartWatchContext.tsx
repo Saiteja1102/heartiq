@@ -191,8 +191,19 @@ export const SmartWatchProvider = ({ children }: { children: ReactNode }) => {
   }, [pushReading]);
 
   const connectBluetooth = useCallback(async () => {
+    // Web Bluetooth requires: Chrome/Edge/Opera, HTTPS, top-level page (not iframe without permission), and a real BLE device.
+    const inIframe = typeof window !== "undefined" && window.self !== window.top;
     if (!("bluetooth" in navigator)) {
-      toast.message("Bluetooth not available", { description: "Falling back to simulation mode" });
+      toast.error("Bluetooth not supported", {
+        description: "Web Bluetooth works on Chrome/Edge desktop or Android. iOS Safari is not supported. Using simulation instead.",
+      });
+      startSimulation();
+      return;
+    }
+    if (inIframe) {
+      toast.message("Open in a new tab to pair", {
+        description: "Bluetooth pairing is blocked inside the preview iframe. Opening the app in its own tab will let you pair a real device. Starting simulation for now.",
+      });
       startSimulation();
       return;
     }
