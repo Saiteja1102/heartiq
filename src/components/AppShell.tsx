@@ -7,11 +7,15 @@ import { Logo } from "./Logo";
 import { Button } from "./ui/button";
 import { NotificationBell } from "./NotificationBell";
 import { IncomingCallOverlay } from "./IncomingCallOverlay";
+import { OnboardingModal } from "./OnboardingModal";
+import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 
 export const AppShell = () => {
   const { user, profile, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const { totalUnread } = useConversations();
+  useSessionTimeout();
+  const showOnboarding = !!profile && profile.role === "patient" && !(profile as any).onboarding_completed;
 
   useEffect(() => {
     if (loading) return;
@@ -91,6 +95,7 @@ export const AppShell = () => {
       </main>
 
       <IncomingCallOverlay />
+      {showOnboarding && <OnboardingModal />}
 
       {/* Mobile bottom nav — all 7 items, evenly distributed */}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 glass-strong border-t border-white/10 px-1 pt-2 pb-[env(safe-area-inset-bottom)] flex items-stretch justify-between">
