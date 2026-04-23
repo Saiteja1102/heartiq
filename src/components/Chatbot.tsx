@@ -13,15 +13,18 @@ const suggestions = ["Explain my last result", "Is sinus tachycardia dangerous?"
 export const Chatbot = () => {
   const { user } = useAuth();
   const { pathname } = useLocation();
+  const rl = useRateLimit(`chatbot:${user?.id ?? "anon"}`, 20, "hour");
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([
     { role: "assistant", content: "Hi! I'm your HeartIQ AI assistant. Ask me anything about your heart, ECG results, or medications." },
   ]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [limitInfo, setLimitInfo] = useState<{ used: number; remaining: number; resetAt: number | null }>(rl.peek());
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, busy]);
+  useEffect(() => { if (open) setLimitInfo(rl.peek()); }, [open, messages.length, rl]);
 
   // Hide on landing/auth and on chat/call pages where it overlaps the input + send button
   const hide =
@@ -36,6 +39,12 @@ export const Chatbot = () => {
 
   const send = async (text: string) => {
     if (!text.trim() || busy) return;
+    const gate = rl.check();
+    setLimitInfo(rl.peek());
+    if (!gate.allowed) {
+      setMessages((prev) => [...prev, { role: "assistant", content: `You've hit the limit of 20 messages per hour. Try again in ${rl.formatReset(gate.resetAt)}.` }]);
+      return;
+    }
     const userMsg: Msg = { role: "user", content: text.trim() };
     const next = [...messages, userMsg];
     setMessages(next); setInput(""); setBusy(true);
@@ -140,12 +149,21 @@ export const Chatbot = () => {
               </div>
             )}
 
-            <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="p-3 border-t border-white/5 flex gap-2">
-              <input value={input} onChange={e => setInput(e.target.value)} placeholder="Ask anything…"
-                className="flex-1 bg-input/40 rounded-full px-4 py-2.5 text-sm border border-white/10 focus:outline-none focus:border-primary/40" />
-              <button type="submit" disabled={busy} className="h-10 w-10 rounded-full bg-gradient-coral grid place-items-center disabled:opacity-50">
-                <Send className="h-4 w-4 text-white" />
-              </button>
+            <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="p-3 border-t border-white/5">
+              {limitInfo.remaining <= 5 && (
+                <div className="mb-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-mono text-muted-foreground flex items-center gap-1.5">
+                  <Clock className="h-3 w-3" /> {limitInfo.remaining} of 20 messages left this hour
+                  {limitInfo.resetAt && limitInfo.remaining === 0 && <span>· resets in {rl.formatReset(limitInfo.resetAt)}</span>}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <input value={input} onChange={e => setInput(e.target.value)} placeholder={limitInfo.remaining === 0 ? "Hourly limit reached" : "Ask anything…"}
+                  disabled={limitInfo.remaining === 0}
+                  className="flex-1 bg-input/40 rounded-full px-4 py-2.5 text-sm border border-white/10 focus:outline-none focus:border-primary/40 disabled:opacity-50" />
+                <button type="submit" disabled={busy || limitInfo.remaining === 0} className="h-10 w-10 rounded-full bg-gradient-coral grid place-items-center disabled:opacity-50">
+                  <Send className="h-4 w-4 text-white" />
+                </button>
+              </div>
             </form>
           </motion.div>
         )}
