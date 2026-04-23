@@ -28,6 +28,7 @@ export const NotificationBell = () => {
   const { items, unreadCount, markAllRead, markRead } = useNotifications();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -38,10 +39,12 @@ export const NotificationBell = () => {
     return () => document.removeEventListener("mousedown", onClick);
   }, [open]);
 
+  const chatBase = profile?.role === "doctor" ? "/doctor/chat" : "/chat";
+
   const onClickItem = (n: Notification) => {
     markRead(n.id);
     setOpen(false);
-    if (n.type === "new_message" && n.related_id) navigate(`/chat?c=${n.related_id}`);
+    if (n.type === "new_message" && n.related_id) navigate(`${chatBase}?c=${n.related_id}`);
     else if (n.type === "incoming_call" && n.related_id) navigate(`/call/${n.related_id}`);
     else if (n.type === "ecg_reviewed" && n.related_id) navigate(`/results/${n.related_id}`);
   };
