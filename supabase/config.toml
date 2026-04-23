@@ -1,1 +1,7 @@
 project_id = "labeqasipyugugelgmfd"
+
+[functions.grok-chat]
+verify_jwt = false
+
+[functions.medicine-info]
+verify_jwt = false
