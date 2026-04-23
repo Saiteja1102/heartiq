@@ -18,35 +18,39 @@ serve(async (req) => {
 
   try {
     const { messages, context } = await req.json();
-    const GROK_API_KEY = Deno.env.get("GROK_API_KEY");
-    if (!GROK_API_KEY) throw new Error("GROK_API_KEY not configured");
+    const API_KEY = Deno.env.get("GROQ_API_KEY") ?? Deno.env.get("GROK_API_KEY");
+    if (!API_KEY) throw new Error("GROQ_API_KEY not configured");
 
     const sysWithCtx = context?.page
       ? `${SYSTEM}\n\nUser is currently on page: ${context.page}.`
       : SYSTEM;
 
-    const resp = await fetch("https://api.x.ai/v1/chat/completions", {
+    const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${GROK_API_KEY}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "grok-2-latest",
+        model: "llama-3.3-70b-versatile",
         stream: true,
         messages: [{ role: "system", content: sysWithCtx }, ...messages],
       }),
     });
 
-    if (resp.status === 429) {
-      return new Response(JSON.stringify({ error: "Rate limited" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
     if (!resp.ok) {
       const t = await resp.text();
-      console.error("Grok error", resp.status, t);
-      return new Response(JSON.stringify({ error: "Grok API error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      console.error("Groq error", resp.status, t);
+      const status = resp.status === 429 || resp.status === 402 ? resp.status : 500;
+      return new Response(JSON.stringify({ error: `Groq API error (${resp.status}): ${t.slice(0, 300)}` }), {
+        status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     return new Response(resp.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
   } catch (e) {
     console.error(e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

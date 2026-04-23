@@ -40,9 +40,14 @@ export const Chatbot = () => {
         },
         body: JSON.stringify({ messages: next, context: { page: pathname } }),
       });
-      if (resp.status === 429) throw new Error("Too many requests. Please wait a moment.");
-      if (resp.status === 402) throw new Error("AI credits exhausted.");
-      if (!resp.ok || !resp.body) throw new Error("Stream failed");
+      if (!resp.ok) {
+        let msg = `Request failed (${resp.status})`;
+        try { const j = await resp.json(); if (j?.error) msg = j.error; } catch {}
+        if (resp.status === 429) msg = "Too many requests. Please wait a moment.";
+        if (resp.status === 402) msg = "AI credits exhausted.";
+        throw new Error(msg);
+      }
+      if (!resp.body) throw new Error("No response stream");
 
       // append assistant placeholder
       setMessages(prev => [...prev, { role: "assistant", content: "" }]);
