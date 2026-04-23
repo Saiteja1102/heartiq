@@ -64,6 +64,7 @@ const App = () => (
               <Route path="/doctor/ecg-queue" element={<EcgQueue />} />
               <Route path="/doctor/appointments" element={<Appointments />} />
               <Route path="/doctor/availability" element={<Availability />} />
+              <Route path="/doctor/chat" element={<Chat />} />
             </Route>
 
                 <Route path="*" element={<NotFound />} />
