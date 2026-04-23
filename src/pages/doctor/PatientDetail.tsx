@@ -113,7 +113,34 @@ const PatientDetail = () => {
             <p className="text-xs text-muted-foreground font-mono mt-1">{ecgs.length} ECG record{ecgs.length !== 1 ? "s" : ""} · {notes.length} note{notes.length !== 1 ? "s" : ""} · {rx.length} prescription{rx.length !== 1 ? "s" : ""}</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="hero" size="sm" onClick={startChat}><MessageSquare className="h-3 w-3" /> Message</Button>
+            <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+              <SheetTrigger asChild>
+                <Button variant="hero" size="sm" onClick={startChat}><MessageSquare className="h-3 w-3" /> Message</Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-full sm:max-w-xl p-0 flex flex-col bg-background border-white/10">
+                <SheetHeader className="px-5 py-4 border-b border-white/10">
+                  <SheetTitle className="font-display text-lg flex items-center justify-between gap-3">
+                    <span>Chat with {patient.display_name ?? "Patient"}</span>
+                    {embeddedConv && (
+                      <Link
+                        to={`/doctor/chat?c=${embeddedConv.id}`}
+                        className="text-[10px] font-mono text-secondary hover:text-secondary/80 inline-flex items-center gap-1"
+                        onClick={() => setDrawerOpen(false)}
+                      >
+                        <LogIn className="h-3 w-3" /> Open full chat
+                      </Link>
+                    )}
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  {embeddedConv ? (
+                    <Thread conversation={embeddedConv} embedded />
+                  ) : (
+                    <div className="p-10 text-center text-sm text-muted-foreground">Loading conversation…</div>
+                  )}
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </motion.div>
@@ -149,6 +176,39 @@ const PatientDetail = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </Section>
+
+          <Section icon={Clock} title="Activity Timeline">
+            {audit.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">No recorded activity yet.</p>
+            ) : (
+              <div className="relative pl-6 space-y-4">
+                <div className="absolute left-2 top-2 bottom-2 w-px bg-white/10" aria-hidden />
+                {audit.map((a) => {
+                  const Icon = auditIcon(a.action);
+                  return (
+                    <div key={a.id} className="relative">
+                      <div className="absolute -left-[18px] top-1 h-3 w-3 rounded-full bg-secondary/30 border border-secondary grid place-items-center">
+                        <Icon className="h-2 w-2 text-secondary" />
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium capitalize">{a.action.replace(/_/g, " ")}</p>
+                          {a.entity_type && (
+                            <p className="text-[10px] font-mono text-muted-foreground mt-0.5">
+                              {a.entity_type}{a.metadata && Object.keys(a.metadata).length > 0 ? ` · ${Object.entries(a.metadata).slice(0, 2).map(([k, v]) => `${k}:${String(v).slice(0, 24)}`).join(" · ")}` : ""}
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-[10px] font-mono text-muted-foreground shrink-0">
+                          {formatDistanceToNow(new Date(a.created_at), { addSuffix: true })}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </Section>
@@ -198,5 +258,18 @@ const Section = ({ icon: Icon, title, children }: any) => (
     {children}
   </div>
 );
+
+const auditIcon = (action: string) => {
+  if (action.includes("ecg")) return Activity;
+  if (action.includes("message") || action.includes("chat")) return MessageSquare;
+  if (action.includes("call")) return Phone;
+  if (action.includes("upload")) return UploadIcon;
+  if (action.includes("pdf") || action.includes("export") || action.includes("download")) return Download;
+  if (action.includes("login") || action.includes("auth") || action.includes("session")) return LogIn;
+  if (action.includes("note")) return NotebookPen;
+  if (action.includes("rx") || action.includes("prescription")) return Pill;
+  if (action.includes("appointment") || action.includes("consult")) return Calendar;
+  return FileText;
+};
 
 export default PatientDetail;
