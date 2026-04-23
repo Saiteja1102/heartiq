@@ -71,7 +71,7 @@ export const useConversations = () => {
     if (!user) return;
     refresh();
     const channel = supabase
-      .channel(`conv-list:${user.id}`)
+      .channel(`conv-list-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, () => refresh())
       .subscribe();
     return () => {
