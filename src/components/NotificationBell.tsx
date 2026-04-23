@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Bell, MessageCircle, PhoneIncoming, FileCheck2, Calendar, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useNotifications, type Notification } from "@/hooks/useNotifications";
+import { useAuth } from "@/context/AuthContext";
 
 const iconFor = (type: string) => {
   switch (type) {
