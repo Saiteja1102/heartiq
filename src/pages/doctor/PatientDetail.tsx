@@ -113,7 +113,34 @@ const PatientDetail = () => {
             <p className="text-xs text-muted-foreground font-mono mt-1">{ecgs.length} ECG record{ecgs.length !== 1 ? "s" : ""} · {notes.length} note{notes.length !== 1 ? "s" : ""} · {rx.length} prescription{rx.length !== 1 ? "s" : ""}</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="hero" size="sm" onClick={startChat}><MessageSquare className="h-3 w-3" /> Message</Button>
+            <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+              <SheetTrigger asChild>
+                <Button variant="hero" size="sm" onClick={startChat}><MessageSquare className="h-3 w-3" /> Message</Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-full sm:max-w-xl p-0 flex flex-col bg-background border-white/10">
+                <SheetHeader className="px-5 py-4 border-b border-white/10">
+                  <SheetTitle className="font-display text-lg flex items-center justify-between gap-3">
+                    <span>Chat with {patient.display_name ?? "Patient"}</span>
+                    {embeddedConv && (
+                      <Link
+                        to={`/doctor/chat?c=${embeddedConv.id}`}
+                        className="text-[10px] font-mono text-secondary hover:text-secondary/80 inline-flex items-center gap-1"
+                        onClick={() => setDrawerOpen(false)}
+                      >
+                        <LogIn className="h-3 w-3" /> Open full chat
+                      </Link>
+                    )}
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  {embeddedConv ? (
+                    <Thread conversation={embeddedConv} embedded />
+                  ) : (
+                    <div className="p-10 text-center text-sm text-muted-foreground">Loading conversation…</div>
+                  )}
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </motion.div>
