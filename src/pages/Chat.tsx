@@ -54,8 +54,8 @@ const ChatPage = () => {
   return (
     <div className="flex bg-[#050d1a]" style={{ height: "calc(100dvh - 57px)", minHeight: 480 }}>
       <aside className={`${active ? "hidden md:flex" : "flex"} flex-col w-full md:w-[320px] border-r border-white/10 bg-white/[0.02] min-h-0`}>
-        <div className="px-5 py-5 flex items-center justify-between">
-          <h2 className="font-display text-2xl text-white">Messages</h2>
+        <div className="h-[65px] px-5 flex items-center justify-between border-b border-white/10">
+          <h2 className="font-display text-xl text-white">Messages</h2>
           <button
             onClick={() => setShowNew(true)}
             className="h-9 w-9 rounded-xl bg-[#ff2d55] hover:bg-[#ff2d55]/90 grid place-items-center transition"
@@ -273,7 +273,7 @@ export const Thread = ({
 
   return (
     <section className="flex-1 flex flex-col min-w-0 bg-[#050d1a]">
-      <header className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-white/10 bg-white/[0.02]">
+      <header className="h-[65px] flex items-center justify-between gap-3 px-5 border-b border-white/10 bg-white/[0.02]">
         <div className="flex items-center gap-3 min-w-0">
           {onBack && (
             <button onClick={onBack} className="md:hidden text-white/60 hover:text-white">
