@@ -1,10 +1,14 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
-import { Download, ArrowRight, ChevronDown, ChevronUp, MessageSquare, Sparkles } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Download, ChevronDown, ChevronUp, MessageSquare, Sparkles, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { logAudit } from "@/lib/audit";
+import { toast } from "sonner";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 const CLASSES = ["Normal", "Arrhythmia", "Myocardial Infarction", "ST Depression"];
 const CLASS_COLORS: Record<string, string> = {
@@ -22,6 +26,44 @@ const Results = () => {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(true);
   const [conf, setConf] = useState(0);
+  const [exporting, setExporting] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
+
+  const exportPdf = async () => {
+    if (!reportRef.current || !result || !user) return;
+    setExporting(true);
+    const t = toast.loading("Generating PDF…");
+    try {
+      const canvas = await html2canvas(reportRef.current, {
+        backgroundColor: "#050d1a",
+        scale: 2,
+        useCORS: true,
+      });
+      const imgData = canvas.toDataURL("image/jpeg", 0.92);
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const imgW = pageW - 16;
+      const imgH = (canvas.height * imgW) / canvas.width;
+      let heightLeft = imgH;
+      let position = 8;
+      pdf.addImage(imgData, "JPEG", 8, position, imgW, imgH);
+      heightLeft -= pageH - 16;
+      while (heightLeft > 0) {
+        pdf.addPage();
+        position = -(imgH - heightLeft) + 8;
+        pdf.addImage(imgData, "JPEG", 8, position, imgW, imgH);
+        heightLeft -= pageH;
+      }
+      pdf.save(`HeartIQ_Report_${result.id.slice(0, 8)}.pdf`);
+      void logAudit(user.id, "ecg_pdf_exported", "ecg_uploads", result.id);
+      toast.success("PDF downloaded", { id: t });
+    } catch (e: any) {
+      toast.error(e.message ?? "PDF export failed", { id: t });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
