@@ -92,19 +92,19 @@ export const AppShell = () => {
 
       <IncomingCallOverlay />
 
-      {/* Mobile bottom nav */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 glass-strong border-t border-white/10 px-2 py-2 flex justify-around">
-        {nav.slice(0, 5).map(({ to, label, icon: Icon, badge }) => (
+      {/* Mobile bottom nav — all 7 items, evenly distributed */}
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 glass-strong border-t border-white/10 px-1 pt-2 pb-[env(safe-area-inset-bottom)] flex items-stretch justify-between">
+        {nav.map(({ to, label, icon: Icon, badge }) => (
           <NavLink key={to} to={to} className={({ isActive }) =>
-            `relative flex flex-col items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] ${isActive ? "text-primary" : "text-muted-foreground"}`
+            `relative flex flex-col items-center justify-center gap-0.5 flex-1 min-w-0 px-1 py-1 rounded-lg text-[9px] leading-tight ${isActive ? "text-primary" : "text-muted-foreground"}`
           }>
-            <Icon className="h-5 w-5" />
+            <Icon className="h-[18px] w-[18px]" />
             {badge && badge > 0 ? (
-              <span className="absolute top-0 right-1 min-w-[16px] h-4 px-1 rounded-full bg-primary text-primary-foreground text-[9px] font-mono grid place-items-center">
+              <span className="absolute top-0 right-1 min-w-[14px] h-3.5 px-1 rounded-full bg-primary text-primary-foreground text-[8px] font-mono grid place-items-center">
                 {badge > 9 ? "9+" : badge}
               </span>
             ) : null}
-            {label.split(" ")[0]}
+            <span className="truncate max-w-full">{label.split(" ")[0]}</span>
           </NavLink>
         ))}
       </nav>
