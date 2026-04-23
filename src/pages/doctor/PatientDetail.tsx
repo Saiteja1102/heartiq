@@ -179,6 +179,39 @@ const PatientDetail = () => {
               </div>
             )}
           </Section>
+
+          <Section icon={Clock} title="Activity Timeline">
+            {audit.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">No recorded activity yet.</p>
+            ) : (
+              <div className="relative pl-6 space-y-4">
+                <div className="absolute left-2 top-2 bottom-2 w-px bg-white/10" aria-hidden />
+                {audit.map((a) => {
+                  const Icon = auditIcon(a.action);
+                  return (
+                    <div key={a.id} className="relative">
+                      <div className="absolute -left-[18px] top-1 h-3 w-3 rounded-full bg-secondary/30 border border-secondary grid place-items-center">
+                        <Icon className="h-2 w-2 text-secondary" />
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium capitalize">{a.action.replace(/_/g, " ")}</p>
+                          {a.entity_type && (
+                            <p className="text-[10px] font-mono text-muted-foreground mt-0.5">
+                              {a.entity_type}{a.metadata && Object.keys(a.metadata).length > 0 ? ` · ${Object.entries(a.metadata).slice(0, 2).map(([k, v]) => `${k}:${String(v).slice(0, 24)}`).join(" · ")}` : ""}
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-[10px] font-mono text-muted-foreground shrink-0">
+                          {formatDistanceToNow(new Date(a.created_at), { addSuffix: true })}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Section>
         </div>
 
         {/* Right: Notes + Rx */}
