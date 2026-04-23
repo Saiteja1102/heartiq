@@ -60,7 +60,7 @@ const PatientDetail = () => {
   const startChat = async () => {
     if (!user || !id) return;
     const cid = await getOrCreateConversation(id, user.id);
-    if (cid) navigate(`/chat?c=${cid}`);
+    if (cid) navigate(`/doctor/chat?c=${cid}`);
   };
 
   if (loading) return <div className="p-10 text-muted-foreground">Loading…</div>;
