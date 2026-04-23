@@ -1,50 +1,90 @@
 
 
-## Fix: AI Chatbot, Medicines & Messages
+# Finish remaining HeartIQ upgrades
 
-### Root cause
+I'll deliver all 9 outstanding items in a single pass, grouped by file. No design changes — only additive features that match the existing dark navy + crimson + teal glassmorphism system.
 
-The user supplied a **Groq Cloud** API key (prefix `gsk_...`), but both edge functions are pointed at **xAI's** API (`api.x.ai`), which rejects Groq keys with `400 Incorrect API key`. That's why both the chatbot and medicines page return "stream failed". Messages itself is wired correctly — the section appears empty because no conversations have been created yet.
+## 1. Onboarding flow modal
+**New file:** `src/components/OnboardingModal.tsx` — 4-step wizard (framer-motion slide transitions):
+- Step 1: Welcome + display name
+- Step 2: DOB, gender, height, weight
+- Step 3: Emergency contact (name + phone) → writes to `alert_thresholds`
+- Step 4: Review + finish → updates `profiles.onboarding_completed = true`
 
-### What I'll change
+**Mount point:** `src/components/AppShell.tsx` — render when `profile.role === "patient" && !profile.onboarding_completed`. Calls `refreshProfile()` on completion.
 
-**1. Switch both edge functions from xAI → Groq Cloud**
+## 2. PDF export on Results page
+**Edit:** `src/pages/Results.tsx`
+- Add `ref` around the report content area
+- New "Download PDF" button in the action grid (next to Image/Consult)
+- On click: `html2canvas(ref, { backgroundColor: "#050d1a", scale: 2 })` → `jsPDF` A4 portrait → save as `HeartIQ_Report_<id>.pdf`
+- Show toast on start/finish, log via `logAudit("ecg_pdf_exported", "ecg_uploads", id)`
 
-`supabase/functions/grok-chat/index.ts` (chatbot):
-- Endpoint → `https://api.groq.com/openai/v1/chat/completions`
-- Model → `llama-3.3-70b-versatile`
-- Read key from `GROQ_API_KEY` (with `GROK_API_KEY` fallback so nothing breaks during the swap)
-- Keep streaming SSE format (Groq is OpenAI-compatible — same delta format)
-- Surface specific errors (401/429/402) to the client instead of generic "Stream failed"
+## 3. Vitals widget on Dashboard
+**Edit:** `src/pages/Dashboard.tsx`
+- Add a new glass card in the right column (above "My Doctor"): "Live Vitals"
+- Reads `useSmartwatch()` — shows current HR, SpO2, last sync, mini sparkline of `liveHistory`
+- If not connected: CTA button → `/vitals`
+- If connected with active alerts: red badge with count
 
-`supabase/functions/groq-medicine/index.ts` (medicines):
-- Same endpoint + model swap
-- Keep `response_format: json_object`, temperature 0.3, max_tokens 1500
-- Add robust JSON cleanup (strip code fences, trim) before parsing in case the model wraps output
+## 4. Chat drawer on PatientDetail
+**Edit:** `src/pages/doctor/PatientDetail.tsx`
+- Replace the "Message" header button behavior: instead of navigating, open a right-side `Sheet` (shadcn) drawer
+- Inside the sheet: render the existing `Thread` component with `embedded={true}`, lazy-loaded with the conversation fetched via `getOrCreateConversation`
+- Keep a secondary "Open full chat" link inside the drawer that navigates to `/doctor/chat?c=<id>`
 
-**2. Improve Chatbot frontend error surfacing** (`src/components/Chatbot.tsx`)
-- Read the JSON error body when `!resp.ok` and show the real reason (e.g. "Invalid API key") instead of the generic "Stream failed".
+## 5. "View ECG Results" header button in MessageThread
+**Edit:** `src/pages/Chat.tsx` (Thread component header)
+- Next to the Video Call button, add an "ECG" button (only when the other party is a patient — derived from `conversation.other_role`)
+- On click: query latest `ecg_uploads` for that patient, navigate to `/doctor/patients/<patient_id>` for doctors, or `/results/latest` for patients
+- For doctors specifically, show a small dropdown listing the 3 most recent ECG IDs
 
-**3. Add a new `GROQ_API_KEY` secret**
-You'll be prompted to paste your Groq Cloud key (get one at https://console.groq.com/keys — free tier works). The functions will prefer `GROQ_API_KEY` and fall back to `GROK_API_KEY` if not set.
+## 6. Audit log timeline on PatientDetail
+**Edit:** `src/pages/doctor/PatientDetail.tsx`
+- New left-column section "Activity Timeline" below ECG History
+- Reads `audit_log` filtered by `user_id = patient.user_id` (RLS already permits this for the patient's doctor)
+- Vertical timeline with icon per action type (ecg_uploaded, ecg_pdf_exported, message_sent, call_started, login, etc.), relative timestamp, metadata snippet
 
-**4. Messages section**
-No code change needed — it works. After the AI is fixed, I'll verify by:
-- Going to `/consult`, clicking **Chat** on a doctor card → creates a conversation row → `/chat?c=<id>` shows the thread.
-- The empty state ("No conversations yet — start a chat from the consult page") is the intended UX when there are zero conversations.
+## 7. Session timeout warning
+**New file:** `src/hooks/useSessionTimeout.ts`
+- Tracks last activity (mousemove/keydown/click, throttled to 30s)
+- At 25 min idle → show warning toast/modal "You'll be signed out in 5 minutes"
+- At 30 min → `supabase.auth.signOut()` + redirect to `/auth?reason=timeout`
+- Logs `session_timeout` audit event
 
-If you'd prefer, I can also seed a demo conversation between your patient account and one of the mock doctors so Messages isn't empty on first load — say the word.
+**Mount:** Inside `AppShell` and `DoctorShell`.
 
-### Files touched
-- `supabase/functions/grok-chat/index.ts` — endpoint + model + key + error passthrough
-- `supabase/functions/groq-medicine/index.ts` — endpoint + model + key + JSON sanitization
-- `src/components/Chatbot.tsx` — surface real error messages
+## 8. Wire client-side rate limits
+**New file:** `src/hooks/useRateLimit.ts` — thin React wrapper around existing `lib/rateLimit.ts` that exposes `{ check, peek, formatReset }`.
 
-### Secrets
-- **Add `GROQ_API_KEY`** (Groq Cloud, starts with `gsk_`). I'll request it via the secret tool when implementation starts.
+Wire into:
+- **`Chatbot.tsx`** — 20 messages/hour. Block input + show inline notice with reset time
+- **`Medicines.tsx`** — 30 lookups/hour. Disable search button when exhausted
+- **`Upload.tsx`** — 10 uploads/day, ALSO call `ecgUploadsTodayCount` (server-side check via existing helper) to prevent localStorage bypass for the per-day cap
 
-### Verification steps after deploy
-1. Open chatbot → ask a question → streams cleanly.
-2. Open `/medicines` → search "Metoprolol" → renders full info card.
-3. `/consult` → click Chat on a doctor → land in `/chat` with a live thread; send a message → appears instantly.
+Note: Per platform guidance, this is **client-side only** (best-effort, easily bypassed). Server-side rate limiting isn't supported yet.
+
+## 9. 7-day / 30-day vitals history tabs
+**Edit:** `src/pages/Vitals.tsx`
+- New "History" section below the live dashboard using shadcn `Tabs` (7D / 30D)
+- Queries `vitals_readings` by `recorded_at >= now() - interval`
+- Shows: avg/min/max HR, avg SpO2, total steps, anomaly count, and a recharts `AreaChart` of HR over time
+- Empty state: prompt to keep watch connected
+
+---
+
+## Technical notes
+- All animations: `initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}`, staggered children at 0.05s
+- All new colors: `#ff2d55` crimson, `#00e5cc` teal, `#050d1a` bg, glassmorphism (`bg-white/5 backdrop-blur-sm border-white/10 rounded-2xl`)
+- No new dependencies needed (jsPDF, html2canvas, date-fns, recharts already installed)
+- No DB migrations needed — schema already supports everything
+- No edge function changes
+- All audit log entries use existing `logAudit()` helper
+- Touch targets ≥44px on mobile; bottom-nav clearance preserved (already fixed last turn)
+
+## Files touched
+**New:** `OnboardingModal.tsx`, `useSessionTimeout.ts`, `useRateLimit.ts`
+**Edited:** `AppShell.tsx`, `DoctorShell.tsx`, `Dashboard.tsx`, `Results.tsx`, `Chat.tsx`, `Chatbot.tsx`, `Medicines.tsx`, `Upload.tsx`, `Vitals.tsx`, `doctor/PatientDetail.tsx`
+
+Approve and I'll switch to default mode and build all 9 in one go.
 
