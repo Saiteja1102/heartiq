@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Sparkles, Pill, AlertTriangle, Ban, Ruler, Repeat, CheckCircle2, RefreshCw, Shield, Baby } from "lucide-react";
+import { Search, Sparkles, Pill, AlertTriangle, Ban, Ruler, Repeat, CheckCircle2, RefreshCw, Shield, Baby, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
+import { useRateLimit } from "@/hooks/useRateLimit";
 import { toast } from "sonner";
 
 type Interaction = { drug: string; severity: "Low" | "Medium" | "High"; effect: string };
@@ -26,12 +28,15 @@ type MedInfo = {
 const HISTORY_KEY = "heartiq:med-history";
 
 const Medicines = () => {
+  const { user } = useAuth();
+  const rl = useRateLimit(`medicines:${user?.id ?? "anon"}`, 30, "hour");
   const [q, setQ] = useState("");
   const [info, setInfo] = useState<MedInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<string[]>([]);
   const [showAllSE, setShowAllSE] = useState(false);
+  const [limitInfo, setLimitInfo] = useState(rl.peek());
 
   useEffect(() => {
     try {
@@ -50,6 +55,14 @@ const Medicines = () => {
 
   const lookup = async (name: string) => {
     if (!name.trim()) return;
+    const gate = rl.check();
+    setLimitInfo(rl.peek());
+    if (!gate.allowed) {
+      const msg = `Hourly lookup limit reached (30/hr). Try again in ${rl.formatReset(gate.resetAt)}.`;
+      setError(msg);
+      toast.error(msg);
+      return;
+    }
     setQ(name); setInfo(null); setError(null); setLoading(true); setShowAllSE(false);
     try {
       const { data, error } = await supabase.functions.invoke("groq-medicine", { body: { medicineName: name } });
