@@ -259,4 +259,17 @@ const Section = ({ icon: Icon, title, children }: any) => (
   </div>
 );
 
+const auditIcon = (action: string) => {
+  if (action.includes("ecg")) return Activity;
+  if (action.includes("message") || action.includes("chat")) return MessageSquare;
+  if (action.includes("call")) return Phone;
+  if (action.includes("upload")) return UploadIcon;
+  if (action.includes("pdf") || action.includes("export") || action.includes("download")) return Download;
+  if (action.includes("login") || action.includes("auth") || action.includes("session")) return LogIn;
+  if (action.includes("note")) return NotebookPen;
+  if (action.includes("rx") || action.includes("prescription")) return Pill;
+  if (action.includes("appointment") || action.includes("consult")) return Calendar;
+  return FileText;
+};
+
 export default PatientDetail;
