@@ -22,8 +22,16 @@ export const Chatbot = () => {
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, busy]);
 
-  // Hide on landing/auth for less clutter
-  if (!user || pathname === "/" || pathname === "/auth") return null;
+  // Hide on landing/auth and on chat/call pages where it overlaps the input + send button
+  const hide =
+    !user ||
+    pathname === "/" ||
+    pathname === "/auth" ||
+    pathname.startsWith("/chat") ||
+    pathname.startsWith("/doctor/chat") ||
+    pathname.startsWith("/call") ||
+    pathname.startsWith("/doctor"); // keep clinician portal clean
+  if (hide) return null;
 
   const send = async (text: string) => {
     if (!text.trim() || busy) return;
