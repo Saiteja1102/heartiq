@@ -296,9 +296,44 @@ export const Thread = ({
           </div>
         </div>
         {!embedded && (
-          <Button size="sm" variant="ghost" onClick={startCall} className="text-[#00e5cc] hover:text-[#00e5cc]/80">
-            <Phone className="h-4 w-4" /> Video Call
-          </Button>
+          <div className="flex items-center gap-1">
+            {conversation.other_role === "patient" && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={async () => {
+                  const { data } = await supabase
+                    .from("ecg_uploads")
+                    .select("id")
+                    .eq("user_id", conversation.other_user_id)
+                    .order("created_at", { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                  if ((data as any)?.id) {
+                    navigate(`/doctor/patients/${conversation.other_user_id}`);
+                  } else {
+                    toast.message("No ECG records yet for this patient");
+                  }
+                }}
+                className="text-[#ff2d55] hover:text-[#ff2d55]/80"
+              >
+                <Activity className="h-4 w-4" /> ECG
+              </Button>
+            )}
+            {conversation.other_role === "doctor" && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => navigate("/results/latest")}
+                className="text-[#ff2d55] hover:text-[#ff2d55]/80"
+              >
+                <Activity className="h-4 w-4" /> My ECG
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" onClick={startCall} className="text-[#00e5cc] hover:text-[#00e5cc]/80">
+              <Phone className="h-4 w-4" /> Call
+            </Button>
+          </div>
         )}
       </header>
 

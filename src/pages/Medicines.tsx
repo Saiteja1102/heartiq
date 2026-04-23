@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Sparkles, Pill, AlertTriangle, Ban, Ruler, Repeat, CheckCircle2, RefreshCw, Shield, Baby } from "lucide-react";
+import { Search, Sparkles, Pill, AlertTriangle, Ban, Ruler, Repeat, CheckCircle2, RefreshCw, Shield, Baby, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
+import { useRateLimit } from "@/hooks/useRateLimit";
 import { toast } from "sonner";
 
 type Interaction = { drug: string; severity: "Low" | "Medium" | "High"; effect: string };
@@ -26,12 +28,15 @@ type MedInfo = {
 const HISTORY_KEY = "heartiq:med-history";
 
 const Medicines = () => {
+  const { user } = useAuth();
+  const rl = useRateLimit(`medicines:${user?.id ?? "anon"}`, 30, "hour");
   const [q, setQ] = useState("");
   const [info, setInfo] = useState<MedInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<string[]>([]);
   const [showAllSE, setShowAllSE] = useState(false);
+  const [limitInfo, setLimitInfo] = useState(rl.peek());
 
   useEffect(() => {
     try {
@@ -50,6 +55,14 @@ const Medicines = () => {
 
   const lookup = async (name: string) => {
     if (!name.trim()) return;
+    const gate = rl.check();
+    setLimitInfo(rl.peek());
+    if (!gate.allowed) {
+      const msg = `Hourly lookup limit reached (30/hr). Try again in ${rl.formatReset(gate.resetAt)}.`;
+      setError(msg);
+      toast.error(msg);
+      return;
+    }
     setQ(name); setInfo(null); setError(null); setLoading(true); setShowAllSE(false);
     try {
       const { data, error } = await supabase.functions.invoke("groq-medicine", { body: { medicineName: name } });
@@ -70,7 +83,7 @@ const Medicines = () => {
         <h1 className="font-display text-4xl md:text-5xl">Understand any cardiac medicine.</h1>
       </div>
 
-      <div className="relative mb-4">
+      <div className="relative mb-2">
         <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         <Input
           value={q}
@@ -80,6 +93,12 @@ const Medicines = () => {
           className="pl-12 h-16 text-lg bg-input/40 rounded-2xl"
         />
       </div>
+      {limitInfo.remaining <= 10 && (
+        <div className="mb-4 inline-flex items-center gap-1.5 text-[11px] font-mono text-muted-foreground">
+          <Clock className="h-3 w-3" /> {limitInfo.remaining} of 30 lookups left this hour
+          {limitInfo.remaining === 0 && limitInfo.resetAt && <span>· resets in {rl.formatReset(limitInfo.resetAt)}</span>}
+        </div>
+      )}
 
       {history.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-10">

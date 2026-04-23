@@ -7,11 +7,13 @@ import { Logo } from "./Logo";
 import { Button } from "./ui/button";
 import { NotificationBell } from "./NotificationBell";
 import { IncomingCallOverlay } from "./IncomingCallOverlay";
+import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 
 export const DoctorShell = () => {
   const { user, profile, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const { totalUnread } = useConversations();
+  useSessionTimeout();
 
   useEffect(() => {
     if (loading) return;

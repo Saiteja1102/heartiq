@@ -1,11 +1,12 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Activity, Heart, CalendarClock, Gauge, Upload, ArrowUpRight, FileText, Stethoscope, Clock, MessageSquare } from "lucide-react";
+import { Activity, Heart, CalendarClock, Gauge, Upload, ArrowUpRight, FileText, Stethoscope, Clock, MessageSquare, Watch, AlertTriangle, Droplet } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, AreaChart, Area } from "recharts";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useSmartwatch } from "@/context/SmartWatchContext";
 
 const ranges = ["7D", "30D", "3M"] as const;
 
@@ -23,6 +24,7 @@ type Ecg = {
 
 const Dashboard = () => {
   const { user, profile } = useAuth();
+  const sw = useSmartwatch();
   const [range, setRange] = useState<typeof ranges[number]>("7D");
   const [ecgs, setEcgs] = useState<Ecg[]>([]);
   const [pendingReview, setPendingReview] = useState<Ecg[]>([]);
@@ -191,6 +193,53 @@ const Dashboard = () => {
         </motion.div>
 
         <div className="space-y-6">
+          {/* Live Vitals widget */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="glass rounded-3xl p-6 relative">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono uppercase tracking-wider mb-4">
+              <Watch className="h-3.5 w-3.5 text-[#00e5cc]" /> Live Vitals
+              {sw.alerts.length > 0 && (
+                <span className="ml-auto inline-flex items-center gap-1 text-[10px] bg-[#ff2d55]/15 text-[#ff2d55] border border-[#ff2d55]/40 px-2 py-0.5 rounded-full">
+                  <AlertTriangle className="h-2.5 w-2.5" /> {sw.alerts.length}
+                </span>
+              )}
+            </div>
+            {sw.isConnected && sw.current ? (
+              <>
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-3">
+                    <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-muted-foreground mb-1">
+                      <Heart className="h-3 w-3 text-[#ff2d55]" /> HR
+                    </div>
+                    <div className="font-mono text-2xl text-[#ff2d55]">{sw.current.heartRate}<span className="text-[10px] text-muted-foreground ml-1">BPM</span></div>
+                  </div>
+                  <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-3">
+                    <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-muted-foreground mb-1">
+                      <Droplet className="h-3 w-3 text-[#00e5cc]" /> SpO2
+                    </div>
+                    <div className="font-mono text-2xl text-[#00e5cc]">{sw.current.spo2}<span className="text-[10px] text-muted-foreground ml-1">%</span></div>
+                  </div>
+                </div>
+                {sw.liveHistory.length > 1 && (
+                  <div className="h-12 -mx-1 mb-2">
+                    <ResponsiveContainer>
+                      <LineChart data={sw.liveHistory.map((r, i) => ({ i, hr: r.heartRate }))}>
+                        <Line type="monotone" dataKey="hr" stroke="#ff2d55" strokeWidth={1.5} dot={false} isAnimationActive={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+                <div className="text-[10px] text-muted-foreground font-mono">
+                  {sw.deviceName} · live
+                </div>
+              </>
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                <p className="mb-3">No wearable connected.</p>
+                <Link to="/vitals"><Button variant="ghost" size="sm" className="w-full">Connect device <ArrowUpRight className="h-3 w-3" /></Button></Link>
+              </div>
+            )}
+          </motion.div>
+
           {/* My Doctor */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass rounded-3xl p-6">
             <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono uppercase tracking-wider mb-4">

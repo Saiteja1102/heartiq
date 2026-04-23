@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, FileText, MessageSquare, Pill, NotebookPen, Calendar, Activity, Phone } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { ArrowLeft, FileText, MessageSquare, Pill, NotebookPen, Calendar, Activity, Phone, Clock, Upload as UploadIcon, Download, LogIn } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { getOrCreateConversation } from "@/hooks/useConversations";
+import { Thread } from "@/pages/Chat";
+import type { Conversation } from "@/hooks/useConversations";
 import { toast } from "sonner";
 
 const PatientDetail = () => {
@@ -18,22 +22,27 @@ const PatientDetail = () => {
   const [ecgs, setEcgs] = useState<any[]>([]);
   const [notes, setNotes] = useState<any[]>([]);
   const [rx, setRx] = useState<any[]>([]);
+  const [audit, setAudit] = useState<any[]>([]);
   const [noteText, setNoteText] = useState("");
   const [rxText, setRxText] = useState("");
   const [loading, setLoading] = useState(true);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [embeddedConv, setEmbeddedConv] = useState<Conversation | null>(null);
 
   const refresh = async () => {
     if (!id) return;
-    const [{ data: p }, { data: e }, { data: n }, { data: r }] = await Promise.all([
+    const [{ data: p }, { data: e }, { data: n }, { data: r }, { data: a }] = await Promise.all([
       supabase.from("profiles").select("*").eq("user_id", id).maybeSingle(),
       supabase.from("ecg_uploads").select("*").eq("user_id", id).order("created_at", { ascending: false }),
       supabase.from("patient_notes").select("*").eq("patient_id", id).order("created_at", { ascending: false }),
       supabase.from("prescriptions").select("*").eq("patient_id", id).order("created_at", { ascending: false }),
+      supabase.from("audit_log").select("*").eq("user_id", id).order("created_at", { ascending: false }).limit(40),
     ]);
     setPatient(p);
     setEcgs(e ?? []);
     setNotes(n ?? []);
     setRx(r ?? []);
+    setAudit(a ?? []);
     setLoading(false);
   };
 
@@ -60,7 +69,26 @@ const PatientDetail = () => {
   const startChat = async () => {
     if (!user || !id) return;
     const cid = await getOrCreateConversation(id, user.id);
-    if (cid) navigate(`/doctor/chat?c=${cid}`);
+    if (!cid) return;
+    // Build minimal Conversation for embedded Thread
+    setEmbeddedConv({
+      id: cid,
+      patient_id: id,
+      doctor_id: user.id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      last_message: "",
+      last_message_at: new Date().toISOString(),
+      patient_unread: 0,
+      doctor_unread: 0,
+      other_user_id: id,
+      other_name: patient?.display_name ?? "Patient",
+      other_role: "patient",
+      other_specialty: null,
+      other_avatar: patient?.avatar_url ?? null,
+      unread: 0,
+    });
+    setDrawerOpen(true);
   };
 
   if (loading) return <div className="p-10 text-muted-foreground">Loading…</div>;

@@ -1,10 +1,14 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
-import { Download, ArrowRight, ChevronDown, ChevronUp, MessageSquare, Sparkles } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Download, ChevronDown, ChevronUp, MessageSquare, Sparkles, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { logAudit } from "@/lib/audit";
+import { toast } from "sonner";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 const CLASSES = ["Normal", "Arrhythmia", "Myocardial Infarction", "ST Depression"];
 const CLASS_COLORS: Record<string, string> = {
@@ -22,6 +26,44 @@ const Results = () => {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(true);
   const [conf, setConf] = useState(0);
+  const [exporting, setExporting] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
+
+  const exportPdf = async () => {
+    if (!reportRef.current || !result || !user) return;
+    setExporting(true);
+    const t = toast.loading("Generating PDF…");
+    try {
+      const canvas = await html2canvas(reportRef.current, {
+        backgroundColor: "#050d1a",
+        scale: 2,
+        useCORS: true,
+      });
+      const imgData = canvas.toDataURL("image/jpeg", 0.92);
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const imgW = pageW - 16;
+      const imgH = (canvas.height * imgW) / canvas.width;
+      let heightLeft = imgH;
+      let position = 8;
+      pdf.addImage(imgData, "JPEG", 8, position, imgW, imgH);
+      heightLeft -= pageH - 16;
+      while (heightLeft > 0) {
+        pdf.addPage();
+        position = -(imgH - heightLeft) + 8;
+        pdf.addImage(imgData, "JPEG", 8, position, imgW, imgH);
+        heightLeft -= pageH;
+      }
+      pdf.save(`HeartIQ_Report_${result.id.slice(0, 8)}.pdf`);
+      void logAudit(user.id, "ecg_pdf_exported", "ecg_uploads", result.id);
+      toast.success("PDF downloaded", { id: t });
+    } catch (e: any) {
+      toast.error(e.message ?? "PDF export failed", { id: t });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -88,13 +130,13 @@ const Results = () => {
         </motion.div>
       )}
 
-      <div className="grid lg:grid-cols-5 gap-6">
+      <div ref={reportRef} className="grid lg:grid-cols-5 gap-6">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="lg:col-span-3 space-y-6">
           {result.image_url && (
             <div className="glass rounded-3xl p-6">
               <h3 className="font-display text-lg mb-4">ECG Image</h3>
               <div className="rounded-2xl border border-white/5 bg-surface-1/50 p-3 overflow-hidden">
-                <img src={result.image_url} alt="ECG" className="w-full rounded-xl" />
+                <img src={result.image_url} alt="ECG" crossOrigin="anonymous" className="w-full rounded-xl" />
               </div>
             </div>
           )}
@@ -167,14 +209,17 @@ const Results = () => {
               )}
             </div>
           )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <Link to="/consult"><Button variant="hero" className="w-full"><MessageSquare className="h-4 w-4" /> Consult</Button></Link>
-            <Button variant="ghost" onClick={() => result.image_url && window.open(result.image_url)}>
-              <Download className="h-4 w-4" /> Image
-            </Button>
-          </div>
         </motion.div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
+        <Link to="/consult"><Button variant="hero" className="w-full"><MessageSquare className="h-4 w-4" /> Consult</Button></Link>
+        <Button variant="ghost" onClick={() => result.image_url && window.open(result.image_url)}>
+          <Download className="h-4 w-4" /> Image
+        </Button>
+        <Button variant="ghost" disabled={exporting} onClick={exportPdf}>
+          <FileDown className="h-4 w-4" /> {exporting ? "Generating…" : "Download PDF"}
+        </Button>
       </div>
     </div>
   );

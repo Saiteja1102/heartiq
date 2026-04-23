@@ -7,6 +7,8 @@ import { NeuralLoader } from "@/components/NeuralLoader";
 import { Logo } from "@/components/Logo";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { useRateLimit } from "@/hooks/useRateLimit";
+import { ecgUploadsTodayCount } from "@/lib/rateLimit";
 import { toast } from "sonner";
 
 const stages = [
@@ -20,6 +22,7 @@ const stages = [
 const UploadPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const rl = useRateLimit(`ecg-upload:${user?.id ?? "anon"}`, 10, "day");
   const [file, setFile] = useState<File | null>(null);
   const [drag, setDrag] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
@@ -45,6 +48,20 @@ const UploadPage = () => {
 
   const submit = async () => {
     if (!file || !user) return;
+
+    // Server-side daily count (prevents localStorage bypass)
+    const todayCount = await ecgUploadsTodayCount(user.id);
+    if (todayCount >= 10) {
+      toast.error("Daily limit reached", { description: "Max 10 ECG uploads per day. Try again tomorrow." });
+      return;
+    }
+    // Client-side throttle (additional)
+    const gate = rl.check();
+    if (!gate.allowed) {
+      toast.error("Upload limit reached", { description: `Try again in ${rl.formatReset(gate.resetAt)}.` });
+      return;
+    }
+
     setAnalyzing(true); setStage(0);
 
     try {

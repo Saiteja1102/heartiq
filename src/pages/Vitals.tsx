@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Bluetooth, Activity, Heart, Droplet, Footprints, AlertTriangle, X, Phone } from "lucide-react";
-import { LineChart, Line, ResponsiveContainer, ReferenceLine, YAxis, XAxis } from "recharts";
+import { Bluetooth, Activity, Heart, Droplet, Footprints, AlertTriangle, X, Phone, History } from "lucide-react";
+import { LineChart, Line, ResponsiveContainer, ReferenceLine, YAxis, XAxis, AreaChart, Area, CartesianGrid, Tooltip } from "recharts";
 import { useSmartwatch } from "@/context/SmartWatchContext";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Vitals = () => {
   const sw = useSmartwatch();
@@ -199,9 +202,116 @@ const Vitals = () => {
           Save thresholds
         </Button>
       </div>
+      <VitalsHistory />
     </motion.div>
   );
 };
+
+const VitalsHistory = () => {
+  const { user } = useAuth();
+  const [range, setRange] = useState<"7d" | "30d">("7d");
+  const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    setLoading(true);
+    const days = range === "7d" ? 7 : 30;
+    const since = new Date(Date.now() - days * 86400000).toISOString();
+    supabase
+      .from("vitals_readings")
+      .select("heart_rate, spo2, steps, is_anomaly, recorded_at")
+      .eq("user_id", user.id)
+      .gte("recorded_at", since)
+      .order("recorded_at", { ascending: true })
+      .limit(1000)
+      .then(({ data }) => {
+        setRows(data ?? []);
+        setLoading(false);
+      });
+  }, [user, range]);
+
+  const stats = useMemo(() => {
+    const hr = rows.map((r) => r.heart_rate).filter((n): n is number => typeof n === "number");
+    const spo = rows.map((r) => r.spo2).filter((n): n is number => typeof n === "number");
+    const steps = rows.map((r) => r.steps).filter((n): n is number => typeof n === "number");
+    return {
+      avgHr: hr.length ? Math.round(hr.reduce((s, x) => s + x, 0) / hr.length) : 0,
+      minHr: hr.length ? Math.min(...hr) : 0,
+      maxHr: hr.length ? Math.max(...hr) : 0,
+      avgSpo: spo.length ? Math.round(spo.reduce((s, x) => s + x, 0) / spo.length) : 0,
+      totalSteps: steps.length ? Math.max(...steps) - Math.min(...steps) : 0,
+      anomalies: rows.filter((r) => r.is_anomaly).length,
+    };
+  }, [rows]);
+
+  const chartData = rows.map((r) => ({
+    t: new Date(r.recorded_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    hr: r.heart_rate,
+  }));
+
+  return (
+    <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+      <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
+        <h3 className="font-display font-bold text-lg text-white flex items-center gap-2">
+          <History className="h-4 w-4 text-[#00e5cc]" /> History
+        </h3>
+        <Tabs value={range} onValueChange={(v) => setRange(v as any)}>
+          <TabsList className="bg-white/10 border border-white/10">
+            <TabsTrigger value="7d" className="data-[state=active]:bg-[#ff2d55] data-[state=active]:text-white text-xs">7D</TabsTrigger>
+            <TabsTrigger value="30d" className="data-[state=active]:bg-[#ff2d55] data-[state=active]:text-white text-xs">30D</TabsTrigger>
+          </TabsList>
+          <TabsContent value="7d" />
+          <TabsContent value="30d" />
+        </Tabs>
+      </div>
+      {loading ? (
+        <div className="text-sm text-white/50 py-10 text-center">Loading…</div>
+      ) : rows.length === 0 ? (
+        <div className="text-sm text-white/50 py-10 text-center">
+          <Activity className="h-8 w-8 mx-auto mb-2 opacity-30" />
+          No readings yet. Keep your watch connected to build history.
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-5">
+            <Stat label="Avg HR" value={`${stats.avgHr}`} unit="BPM" color="text-[#ff2d55]" />
+            <Stat label="Min / Max HR" value={`${stats.minHr} / ${stats.maxHr}`} unit="BPM" color="text-white" />
+            <Stat label="Avg SpO2" value={`${stats.avgSpo}`} unit="%" color="text-[#00e5cc]" />
+            <Stat label="Steps" value={`${stats.totalSteps.toLocaleString()}`} unit="total" color="text-white" />
+            <Stat label="Anomalies" value={`${stats.anomalies}`} unit="events" color="text-amber-400" />
+            <Stat label="Readings" value={`${rows.length}`} unit="logged" color="text-white/70" />
+          </div>
+          <div className="h-56">
+            <ResponsiveContainer>
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="vh" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#ff2d55" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="#ff2d55" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="rgba(255,255,255,0.05)" />
+                <XAxis dataKey="t" stroke="rgba(255,255,255,0.4)" fontSize={10} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                <YAxis stroke="rgba(255,255,255,0.4)" fontSize={10} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={{ background: "#050d1a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12 }} />
+                <Area type="monotone" dataKey="hr" stroke="#ff2d55" strokeWidth={2} fill="url(#vh)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+const Stat = ({ label, value, unit, color }: { label: string; value: string; unit: string; color: string }) => (
+  <div className="rounded-xl bg-white/5 border border-white/10 p-3">
+    <div className="text-[10px] font-mono uppercase text-white/50 mb-1">{label}</div>
+    <div className={`font-mono text-xl font-bold ${color}`}>{value}</div>
+    <div className="text-[10px] text-white/40">{unit}</div>
+  </div>
+);
 
 const ConnectCard = ({ icon: Icon, color, title, desc, btnLabel, onClick, hint }: any) => (
   <div className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 hover:border-white/20 transition">
