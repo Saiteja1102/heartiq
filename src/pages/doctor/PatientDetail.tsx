@@ -69,7 +69,26 @@ const PatientDetail = () => {
   const startChat = async () => {
     if (!user || !id) return;
     const cid = await getOrCreateConversation(id, user.id);
-    if (cid) navigate(`/doctor/chat?c=${cid}`);
+    if (!cid) return;
+    // Build minimal Conversation for embedded Thread
+    setEmbeddedConv({
+      id: cid,
+      patient_id: id,
+      doctor_id: user.id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      last_message: "",
+      last_message_at: new Date().toISOString(),
+      patient_unread: 0,
+      doctor_unread: 0,
+      other_user_id: id,
+      other_name: patient?.display_name ?? "Patient",
+      other_role: "patient",
+      other_specialty: null,
+      other_avatar: patient?.avatar_url ?? null,
+      unread: 0,
+    });
+    setDrawerOpen(true);
   };
 
   if (loading) return <div className="p-10 text-muted-foreground">Loading…</div>;
