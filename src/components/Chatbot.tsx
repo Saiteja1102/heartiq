@@ -85,9 +85,9 @@ export const Chatbot = () => {
 
   return (
     <>
-      {/* FAB */}
+      {/* FAB — lifted above mobile bottom nav */}
       <button onClick={() => setOpen(!open)}
-        className="fixed bottom-6 right-6 lg:bottom-8 lg:right-8 z-50 h-14 w-14 rounded-full bg-gradient-coral shadow-coral grid place-items-center hover:scale-110 transition">
+        className="fixed bottom-24 right-4 lg:bottom-8 lg:right-8 z-50 h-14 w-14 rounded-full bg-gradient-coral shadow-coral grid place-items-center hover:scale-110 transition">
         {open ? <X className="h-5 w-5 text-white" /> : <>
           <MessageCircle className="h-5 w-5 text-white" />
           <span className="absolute inset-0 rounded-full border border-primary animate-pulse-ring" />
