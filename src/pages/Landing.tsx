@@ -42,16 +42,6 @@ const Landing = () => {
       {/* Hero */}
       <section className="relative min-h-screen flex items-center grain">
         <div className="absolute inset-0 bg-gradient-hero pointer-events-none" />
-        {/* ECG line — positioned below the heading so text stays readable */}
-        <div className="absolute inset-x-0 bottom-24 md:bottom-16 z-0 opacity-80 pointer-events-none">
-          <EcgCanvas height={180} />
-          {/* QRS pulse ring */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-            <span className="absolute -inset-2 rounded-full border border-primary animate-pulse-ring" />
-            <span className="absolute -inset-2 rounded-full border border-primary animate-pulse-ring" style={{ animationDelay: "1.1s" }} />
-            <span className="block h-3 w-3 rounded-full bg-primary shadow-coral" />
-          </div>
-        </div>
 
         <div className="container relative z-10 pt-32 pb-20">
           <motion.div initial="hidden" animate="show" className="max-w-4xl mx-auto text-center">
@@ -59,17 +49,28 @@ const Landing = () => {
               <Sparkles className="h-3.5 w-3.5 text-secondary" />
               FDA-cleared AI cardiology platform
             </motion.div>
-            <h1 className="font-display font-bold leading-[0.95] text-5xl sm:text-7xl md:text-8xl mb-8">
+            <h1 className="font-display font-bold leading-[0.95] text-5xl sm:text-7xl md:text-8xl mb-6">
               {["AI", "That", "Reads"].map((w, i) => (
                 <motion.span key={w + i} variants={fadeUp} custom={i} className="inline-block mr-4">{w}</motion.span>
               ))}
               <br />
               <motion.span variants={fadeUp} custom={3} className="inline-block text-gradient-coral">Your Heart.</motion.span>
             </h1>
-            <motion.p variants={fadeUp} custom={4} className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
+
+            {/* ECG line — sits between the heading and the description */}
+            <motion.div variants={fadeUp} custom={4} className="relative mb-8 -mx-4 sm:-mx-8">
+              <EcgCanvas height={120} />
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                <span className="absolute -inset-2 rounded-full border border-primary animate-pulse-ring" />
+                <span className="absolute -inset-2 rounded-full border border-primary animate-pulse-ring" style={{ animationDelay: "1.1s" }} />
+                <span className="block h-3 w-3 rounded-full bg-primary shadow-coral" />
+              </div>
+            </motion.div>
+
+            <motion.p variants={fadeUp} custom={5} className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
               Upload an ECG. Get instant AI analysis. Talk to a cardiologist in minutes — all from one calm, beautifully designed app.
             </motion.p>
-            <motion.div variants={fadeUp} custom={5} className="flex flex-col sm:flex-row gap-3 justify-center">
+            <motion.div variants={fadeUp} custom={6} className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link to="/upload"><Button variant="hero" size="lg" className="animate-heartbeat">Upload ECG <ArrowRight className="h-4 w-4" /></Button></Link>
               <Button variant="ghost" size="lg">Watch demo</Button>
             </motion.div>
