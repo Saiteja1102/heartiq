@@ -63,7 +63,7 @@ const Landing = () => {
               custom={4}
               className="relative mb-8 w-screen left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]"
             >
-              <EcgCanvas height={120} />
+              <EcgCanvas height={200} />
               <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
                 <span className="absolute -inset-2 rounded-full border border-primary animate-pulse-ring" />
                 <span className="absolute -inset-2 rounded-full border border-primary animate-pulse-ring" style={{ animationDelay: "1.1s" }} />
