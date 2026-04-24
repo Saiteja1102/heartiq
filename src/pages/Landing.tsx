@@ -57,8 +57,12 @@ const Landing = () => {
               <motion.span variants={fadeUp} custom={3} className="inline-block text-gradient-coral">Your Heart.</motion.span>
             </h1>
 
-            {/* ECG line — sits between the heading and the description */}
-            <motion.div variants={fadeUp} custom={4} className="relative mb-8 -mx-4 sm:-mx-8">
+            {/* ECG line — full-bleed, edge to edge */}
+            <motion.div
+              variants={fadeUp}
+              custom={4}
+              className="relative mb-8 w-screen left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]"
+            >
               <EcgCanvas height={120} />
               <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
                 <span className="absolute -inset-2 rounded-full border border-primary animate-pulse-ring" />
