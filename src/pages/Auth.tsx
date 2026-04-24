@@ -63,7 +63,8 @@ const AuthPage = () => {
           },
         });
         if (error) throw error;
-        toast.success(role === "doctor" ? "Doctor account created" : "Welcome to HeartIQ");
+        toast.success("Check your email to verify your account before signing in.");
+        setMode("signin");
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email: data.email,
