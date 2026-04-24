@@ -42,9 +42,9 @@ const Landing = () => {
       {/* Hero */}
       <section className="relative min-h-screen flex items-center grain">
         <div className="absolute inset-0 bg-gradient-hero pointer-events-none" />
-        {/* ECG line dead-center vertical */}
-        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-0 opacity-90">
-          <EcgCanvas height={260} />
+        {/* ECG line — positioned below the heading so text stays readable */}
+        <div className="absolute inset-x-0 bottom-24 md:bottom-16 z-0 opacity-80 pointer-events-none">
+          <EcgCanvas height={180} />
           {/* QRS pulse ring */}
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             <span className="absolute -inset-2 rounded-full border border-primary animate-pulse-ring" />
