@@ -6,7 +6,6 @@ import { Search, Star, MessageSquare, Phone, Calendar as CalendarIcon } from "lu
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -207,25 +206,19 @@ const Consult = () => {
 
           <div className="space-y-4">
             <div>
-              <label className="text-xs font-mono text-muted-foreground uppercase mb-2 block">Select date</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}>
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date ? format(date, "PPP") : "Pick a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={setDate}
-                    disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
+              <label className="text-xs font-mono text-muted-foreground uppercase mb-2 block">
+                Select date {date && <span className="text-secondary normal-case">· {format(date, "PPP")}</span>}
+              </label>
+              <div className="rounded-xl border border-white/10 bg-white/[0.02] flex justify-center">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={setDate}
+                  disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </div>
             </div>
 
             <div>
