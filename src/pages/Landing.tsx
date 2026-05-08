@@ -4,7 +4,6 @@ import { ArrowRight, Upload as UploadIcon, Brain, Video, Activity, MessageSquare
 import { Button } from "@/components/ui/button";
 import { EcgCanvas } from "@/components/EcgCanvas";
 import { Logo } from "@/components/Logo";
-import { Counter } from "@/components/Counter";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
