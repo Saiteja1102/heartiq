@@ -1,9 +1,14 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Search, Star, MessageSquare, Phone, Calendar } from "lucide-react";
+import { format } from "date-fns";
+import { Search, Star, MessageSquare, Phone, Calendar as CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { getOrCreateConversation } from "@/hooks/useConversations";
@@ -23,6 +28,10 @@ type Doc = {
 };
 
 const FILTERS = ["All", "Cardiologist", "General Physician", "Emergency", "Available Now"] as const;
+const TIME_SLOTS = [
+  "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
+  "12:00", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00",
+];
 
 const Consult = () => {
   const { user } = useAuth();
@@ -30,6 +39,11 @@ const Consult = () => {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<typeof FILTERS[number]>("All");
+
+  const [bookingDoc, setBookingDoc] = useState<Doc | null>(null);
+  const [date, setDate] = useState<Date | undefined>();
+  const [slot, setSlot] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -79,15 +93,47 @@ const Consult = () => {
     navigate(`/call/${(data as any).id}`);
   };
 
-  const onBook = async (d: Doc) => {
-    if (!user) return;
-    const when = new Date();
-    when.setDate(when.getDate() + 1);
-    const { error } = await supabase.from("consultations").insert({
-      user_id: user.id, doctor_name: d.display_name, specialty: d.specialty,
-      scheduled_at: when.toISOString(), status: "scheduled",
-    });
-    if (error) toast.error("Booking failed"); else toast.success(`Booked with ${d.display_name} for tomorrow`);
+  const openBooking = (d: Doc) => {
+    setBookingDoc(d);
+    setDate(undefined);
+    setSlot(null);
+  };
+
+  const confirmBooking = async () => {
+    if (!user || !bookingDoc || !date || !slot) return;
+    setSubmitting(true);
+    const [h, m] = slot.split(":").map(Number);
+    const when = new Date(date);
+    when.setHours(h, m, 0, 0);
+
+    const payload: any = {
+      user_id: user.id,
+      doctor_name: bookingDoc.display_name,
+      specialty: bookingDoc.specialty,
+      scheduled_at: when.toISOString(),
+      status: "scheduled",
+    };
+    if (bookingDoc.is_real && bookingDoc.user_id) payload.doctor_id = bookingDoc.user_id;
+
+    const { error } = await supabase.from("consultations").insert(payload);
+    if (error) {
+      toast.error("Booking failed");
+      setSubmitting(false);
+      return;
+    }
+
+    if (bookingDoc.is_real && bookingDoc.user_id) {
+      await supabase.from("notifications").insert({
+        user_id: bookingDoc.user_id,
+        type: "appointment_confirmed",
+        title: "New appointment booked",
+        body: `${when.toLocaleString([], { dateStyle: "medium", timeStyle: "short" })} — patient consultation`,
+      });
+    }
+
+    toast.success(`Booked with ${bookingDoc.display_name} on ${format(when, "PPP 'at' p")}`);
+    setSubmitting(false);
+    setBookingDoc(null);
   };
 
   return (
@@ -143,12 +189,68 @@ const Consult = () => {
               <div className="grid grid-cols-3 gap-2">
                 <Button variant="ghost" size="sm" onClick={() => onChat(d)}><MessageSquare className="h-3 w-3" /></Button>
                 <Button variant="ghost" size="sm" onClick={() => onCall(d)}><Phone className="h-3 w-3" /></Button>
-                <Button variant="hero" size="sm" onClick={() => onBook(d)}><Calendar className="h-3 w-3" /></Button>
+                <Button variant="hero" size="sm" onClick={() => openBooking(d)}><CalendarIcon className="h-3 w-3" /></Button>
               </div>
             </motion.div>
           ))}
         </div>
       )}
+
+      <Dialog open={!!bookingDoc} onOpenChange={(o) => !o && setBookingDoc(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Book appointment</DialogTitle>
+            <DialogDescription>
+              {bookingDoc && <>with <span className="text-foreground">{bookingDoc.display_name}</span> · {bookingDoc.specialty}</>}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-mono text-muted-foreground uppercase mb-2 block">Select date</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {date ? format(date, "PPP") : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={setDate}
+                    disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div>
+              <label className="text-xs font-mono text-muted-foreground uppercase mb-2 block">Select time slot</label>
+              <div className="grid grid-cols-4 gap-2">
+                {TIME_SLOTS.map((t) => (
+                  <button key={t} onClick={() => setSlot(t)}
+                    className={`px-2 py-2 rounded-lg text-xs font-mono border transition ${
+                      slot === t ? "bg-primary text-primary-foreground border-primary" : "bg-white/[0.03] border-white/10 hover:border-white/20"
+                    }`}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setBookingDoc(null)}>Cancel</Button>
+            <Button variant="hero" disabled={!date || !slot || submitting} onClick={confirmBooking}>
+              {submitting ? "Booking…" : "Confirm booking"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
