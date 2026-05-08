@@ -47,7 +47,7 @@ const Landing = () => {
           <motion.div initial="hidden" animate="show" className="max-w-4xl mx-auto text-center">
             <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-xs text-muted-foreground mb-8">
               <Sparkles className="h-3.5 w-3.5 text-secondary" />
-              FDA-cleared AI cardiology platform
+              AI cardiology platform
             </motion.div>
             <h1 className="font-display font-bold leading-[0.95] text-5xl sm:text-7xl md:text-8xl mb-6">
               {["AI", "That", "Reads"].map((w, i) => (
@@ -76,7 +76,6 @@ const Landing = () => {
             </motion.p>
             <motion.div variants={fadeUp} custom={6} className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link to="/upload"><Button variant="hero" size="lg" className="animate-heartbeat">Upload ECG <ArrowRight className="h-4 w-4" /></Button></Link>
-              <Button variant="ghost" size="lg">Watch demo</Button>
             </motion.div>
           </motion.div>
         </div>
@@ -138,7 +137,7 @@ const Landing = () => {
       <section id="trust" className="py-32 relative">
         <div className="container text-center mb-16">
           <motion.h2 initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="font-display text-3xl md:text-5xl mb-4">
-            Trusted by <span className="text-gradient-coral"><Counter to={12384} suffix="+" /></span> patients
+            Trusted by <span className="text-gradient-coral">patients</span>
           </motion.h2>
           <p className="text-muted-foreground">From routine checks to life-saving alerts.</p>
         </div>
