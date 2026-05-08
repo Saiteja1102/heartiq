@@ -149,6 +149,7 @@ export type Database = {
       consultations: {
         Row: {
           created_at: string
+          doctor_id: string | null
           doctor_name: string
           id: string
           scheduled_at: string
@@ -158,6 +159,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          doctor_id?: string | null
           doctor_name: string
           id?: string
           scheduled_at: string
@@ -167,6 +169,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          doctor_id?: string | null
           doctor_name?: string
           id?: string
           scheduled_at?: string
