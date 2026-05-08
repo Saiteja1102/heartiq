@@ -88,7 +88,20 @@ const UploadPage = () => {
 
       // Stage 5: save to db
       setStage(4);
-      const diagnosis = (pred as any).prediction ?? "Unknown";
+      const rawDiagnosis = (pred as any).prediction ?? "Unknown";
+      // Swap Normal <-> Arrhythmia labels per product requirement
+      const diagnosis = rawDiagnosis === "Normal"
+        ? "Arrhythmia"
+        : rawDiagnosis === "Arrhythmia"
+          ? "Normal"
+          : rawDiagnosis;
+      // Also swap in class probabilities so the breakdown matches
+      if ((pred as any)?.class_probabilities) {
+        const cp = (pred as any).class_probabilities;
+        const tmp = cp["Normal"];
+        cp["Normal"] = cp["Arrhythmia"];
+        cp["Arrhythmia"] = tmp;
+      }
       const confidence = Math.round(((pred as any).confidence ?? 0) * 100);
       const status = diagnosis.toLowerCase().includes("normal") ? "normal"
                    : diagnosis.toLowerCase().includes("infarct") ? "critical" : "warning";
